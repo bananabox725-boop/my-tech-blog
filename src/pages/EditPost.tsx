@@ -160,12 +160,16 @@ const EditPost: React.FC = () => {
             <label htmlFor="content">내용</label>
             <textarea
               id="content"
-              rows={10}
+              rows={15}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="내용을 입력하세요"
+              placeholder="마크다운 형식을 지원합니다. (예: [링크이름](https://주소))"
               aria-required="true"
             ></textarea>
+            <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '8px', lineHeight: '1.5' }}>
+              💡 <b>마크다운 팁:</b> 하이퍼링크는 <code>[링크이름](https://주소)</code> 형식으로 입력하세요.<br/>
+              굵은 글씨는 <code>**내용**</code>, 제목은 <code>### 제목</code> 처럼 사용 가능합니다.
+            </p>
           </div>
           <div className="form-actions" style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" className="submit-btn">저장</button>
