@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Post } from '../data/posts';
-import { getPosts } from '../utils/storage';
+import { getPosts, isAdmin, deletePost } from '../utils/storage';
 import '../styles/blog.css';
 
 const Home: React.FC = () => {
-  const [posts] = useState<Post[]>(() => getPosts());
+  const [posts, setPosts] = useState<Post[]>(() => getPosts());
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const adminMode = isAdmin();
 
   const filteredPosts = useMemo(() => {
     let result = posts;
@@ -23,6 +24,15 @@ const Home: React.FC = () => {
     }
     return result;
   }, [posts, activeCategory, searchTerm]);
+
+  const handleDelete = (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+      deletePost(id);
+      setPosts(getPosts());
+    }
+  };
 
   const categories = ['All', ...Array.from(new Set(posts.map(post => post.category)))];
 
@@ -69,7 +79,18 @@ const Home: React.FC = () => {
                     </div>
                   )}
                   <div className="post-card-content">
-                    <span className="category-badge">{post.category}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <span className="category-badge">{post.category}</span>
+                      {adminMode && (
+                        <button 
+                          onClick={(e) => handleDelete(e, post.id)} 
+                          className="delete-btn"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem', marginTop: '-10px' }}
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
                     <h3>{post.title}</h3>
                     <p>{post.excerpt}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

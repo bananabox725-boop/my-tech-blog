@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPosts, updatePost } from '../utils/storage';
+import { getPosts, updatePost, deletePost } from '../utils/storage';
 import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
@@ -82,6 +82,13 @@ const EditPost: React.FC = () => {
 
     updatePost(updatedPost);
     navigate(`/post/${id}`);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+      deletePost(Number(id));
+      navigate('/');
+    }
   };
 
   if (!post) return null;
@@ -171,9 +178,12 @@ const EditPost: React.FC = () => {
               굵은 글씨는 <code>**내용**</code>, 제목은 <code>### 제목</code> 처럼 사용 가능합니다.
             </p>
           </div>
-          <div className="form-actions" style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" className="submit-btn">저장</button>
-            <button type="button" className="cancel-btn" onClick={() => navigate(-1)}>취소</button>
+          <div className="form-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" className="submit-btn">저장</button>
+              <button type="button" className="cancel-btn" onClick={() => navigate(-1)}>취소</button>
+            </div>
+            <button type="button" className="delete-btn" onClick={handleDelete}>삭제</button>
           </div>
         </form>
       </article>

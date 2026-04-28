@@ -1,18 +1,27 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { isAdmin, loginAdmin, logoutAdmin } from '../utils/storage';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost } from '../utils/storage';
+import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
 const Admin: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [posts, setPosts] = useState<Post[]>([]);
   const navigate = useNavigate();
   const loggedIn = isAdmin();
+
+  useEffect(() => {
+    if (loggedIn) {
+      setPosts(getPosts());
+    }
+  }, [loggedIn]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginAdmin(password)) {
-      navigate('/');
+      setPosts(getPosts());
+      navigate('/admin');
     } else {
       setError('비밀번호가 올바르지 않습니다.');
     }
@@ -23,23 +32,74 @@ const Admin: React.FC = () => {
     navigate('/');
   };
 
+  const handleDeletePost = (id: number) => {
+    if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+      deletePost(id);
+      setPosts(getPosts());
+    }
+  };
+
   if (loggedIn) {
     return (
       <div className="container">
         <article className="post-detail">
-          <header>
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h1>관리자 설정</h1>
-          </header>
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <p style={{ marginBottom: '20px', fontSize: '1.2rem' }}>현재 관리자로 로그인되어 있습니다.</p>
             <button 
               onClick={handleLogout} 
               className="delete-btn" 
-              style={{ width: 'auto', padding: '10px 30px' }}
+              style={{ width: 'auto', padding: '8px 20px' }}
             >
               로그아웃
             </button>
-          </div>
+          </header>
+
+          <section>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>게시글 관리</h2>
+              <Link to="/create" className="submit-btn" style={{ textDecoration: 'none', fontSize: '0.9rem' }}>
+                새 글 작성
+              </Link>
+            </div>
+
+            <div className="admin-post-list">
+              {posts.length > 0 ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-light)', textAlign: 'left' }}>
+                      <th style={{ padding: '12px' }}>제목</th>
+                      <th style={{ padding: '12px' }}>카테고리</th>
+                      <th style={{ padding: '12px' }}>작성일</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posts.map(post => (
+                      <tr key={post.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '12px' }}>
+                          <Link to={`/post/${post.id}`} style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: 500 }}>
+                            {post.title}
+                          </Link>
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          <span className="category-badge" style={{ marginBottom: 0 }}>{post.category}</span>
+                        </td>
+                        <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{post.date}</td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <Link to={`/edit/${post.id}`} className="edit-btn" style={{ textDecoration: 'none', padding: '6px 12px' }}>수정</Link>
+                            <button onClick={() => handleDeletePost(post.id)} className="delete-btn" style={{ padding: '6px 12px' }}>삭제</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>게시글이 없습니다.</p>
+              )}
+            </div>
+          </section>
         </article>
       </div>
     );
