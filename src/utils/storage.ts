@@ -45,7 +45,7 @@ export const incrementViews = (id: number) => {
   const posts = getPosts();
   const index = posts.findIndex(p => p.id === id);
   if (index !== -1) {
-    posts[index].views = (posts[index].views || 0) + 1;
+    posts[index].views = posts[index].views + 1;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
   }
 };
@@ -56,10 +56,10 @@ export const toggleLike = (id: number): number => {
   if (index !== -1) {
     const isLiked = localStorage.getItem(`liked_${id}`) === 'true';
     if (isLiked) {
-      posts[index].likes = Math.max(0, (posts[index].likes || 0) - 1);
+      posts[index].likes = Math.max(0, posts[index].likes - 1);
       localStorage.removeItem(`liked_${id}`);
     } else {
-      posts[index].likes = (posts[index].likes || 0) + 1;
+      posts[index].likes = posts[index].likes + 1;
       localStorage.setItem(`liked_${id}`, 'true');
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));

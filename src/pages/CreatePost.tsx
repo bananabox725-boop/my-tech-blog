@@ -55,7 +55,7 @@ const CreatePost: React.FC = () => {
       return;
     }
 
-    const newPost = {
+    const newPost: Post = {
       id: Date.now(),
       title,
       category,
@@ -63,7 +63,9 @@ const CreatePost: React.FC = () => {
       imageUrl: imageUrl || undefined,
       attachments: attachments.length > 0 ? attachments : undefined,
       excerpt: content.substring(0, 100) + '...',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      likes: 0,
+      views: 0
     };
 
     savePost(newPost);

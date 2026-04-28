@@ -44,19 +44,20 @@ const PostDetail: React.FC = () => {
 
   // 댓글 및 인터랙션 상태
   const [comments, setComments] = useState<Comment[]>([]);
-  const [likes, setLikes] = useState(post?.likes || 0);
+  const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
   const [author, setAuthor] = useState('');
   const [password, setPassword] = useState('');
   const [commentContent, setCommentContent] = useState('');
 
   useEffect(() => {
-    if (id) {
+    if (id && post) {
       setComments(getComments(Number(id)));
       setLiked(isPostLiked(Number(id)));
+      setLikes(post.likes);
       incrementViews(Number(id));
     }
-  }, [id]);
+  }, [id, post]);
 
   const handleLike = () => {
     const newLikes = toggleLike(Number(id));
@@ -143,26 +144,38 @@ const PostDetail: React.FC = () => {
         <section className="post-content markdown-body" aria-label="본문" style={{ minHeight: '200px' }}>
           <ReactMarkdown
             components={{
-              code({ node, inline, className, children, ...props }: any) {
+              code(props: any) {
+                const { className, children, ...rest } = props;
                 const match = /language-(\w+)/.exec(className || '');
-                return !inline && match ? (
+                // inline 속성은 react-markdown v9+에서 더 이상 직접 전달되지 않으므로 className으로 구분합니다.
+                const isCodeBlock = match;
+                return isCodeBlock ? (
                   <SyntaxHighlighter
                     style={vscDarkPlus as any}
                     language={match[1]}
                     PreTag="div"
-                    {...props}
+                    {...rest}
                   >
                     {String(children).replace(/\n$/, '')}
                   </SyntaxHighlighter>
                 ) : (
-                  <code className={className} {...props}>
+                  <code className={className} {...rest}>
                     {children}
                   </code>
                 );
               },
-              h1: ({children}) => <h1 id={String(children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{children}</h1>,
-              h2: ({children}) => <h2 id={String(children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{children}</h2>,
-              h3: ({children}) => <h3 id={String(children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{children}</h3>,
+              h1: (props: any) => {
+                const content = String(props.children);
+                return <h1 id={content.toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h1>;
+              },
+              h2: (props: any) => {
+                const content = String(props.children);
+                return <h2 id={content.toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h2>;
+              },
+              h3: (props: any) => {
+                const content = String(props.children);
+                return <h3 id={content.toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h3>;
+              },
             }}
           >
             {post.content}

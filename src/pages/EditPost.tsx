@@ -13,16 +13,29 @@ const EditPost: React.FC = () => {
     return posts.find(p => p.id === Number(id));
   }, [id]);
 
-  const [title, setTitle] = useState(post?.title || '');
-  const [category, setCategory] = useState(post?.category || 'React');
-  const [content, setContent] = useState(post?.content || '');
-  const [imageUrl, setImageUrl] = useState(post?.imageUrl || '');
-  const [attachments, setAttachments] = useState<{ name: string; data: string; type: string }[]>(post?.attachments || []);
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('React');
+  const [content, setContent] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [attachments, setAttachments] = useState<{ name: string; data: string; type: string }[]>([]);
+
+  useEffect(() => {
+    if (post) {
+      setTitle(post.title);
+      setCategory(post.category);
+      setContent(post.content);
+      setImageUrl(post.imageUrl || '');
+      setAttachments(post.attachments || []);
+    } else {
+      alert('게시글을 찾지 못했습니다.');
+      navigate('/');
+    }
+  }, [post, navigate]);
 
   // 기존 포스트에서 카테고리 목록 추출
   const existingCategories = useMemo(() => {
     const posts = getPosts();
-    return Array.from(new Set(posts.map((p: Post) => p.category))) as string[];
+    return Array.from(new Set(posts.map(p => p.category)));
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,13 +67,6 @@ const EditPost: React.FC = () => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  useEffect(() => {
-    if (!post) {
-      alert('게시글을 찾지 못했습니다.');
-      navigate('/');
-    }
-  }, [post, navigate]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -77,7 +83,9 @@ const EditPost: React.FC = () => {
       imageUrl: imageUrl || undefined,
       attachments: attachments.length > 0 ? attachments : undefined,
       excerpt: content.substring(0, 100) + '...',
-      date: post?.date || new Date().toISOString().split('T')[0]
+      date: post?.date || new Date().toISOString().split('T')[0],
+      likes: post?.likes || 0,
+      views: post?.views || 0
     };
 
     updatePost(updatedPost);
