@@ -14,7 +14,7 @@ import {
   toggleLike, 
   isPostLiked 
 } from '../utils/storage';
-import type { Comment } from '../data/posts';
+import type { Post, Comment } from '../data/posts';
 import '../styles/blog.css';
 
 const PostDetail: React.FC = () => {
@@ -22,10 +22,39 @@ const PostDetail: React.FC = () => {
   const navigate = useNavigate();
   const adminMode = isAdmin();
 
-  // 게시글 정보
-  const post = useMemo(() => {
-    const posts = getPosts();
-    return posts.find((p) => p.id === Number(id)) || null;
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 댓글 및 인터랙션 상태
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [likes, setLikes] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [author, setAuthor] = useState('');
+  const [password, setPassword] = useState('');
+  const [commentContent, setCommentContent] = useState('');
+
+  useEffect(() => {
+    const fetchPostData = async () => {
+      if (!id) return;
+      setLoading(true);
+      const posts = await getPosts();
+      const foundPost = posts.find((p) => p.id === Number(id)) || null;
+      
+      if (foundPost) {
+        setPost(foundPost);
+        setLikes(foundPost.likes);
+        setLiked(isPostLiked(Number(id)));
+        
+        // Load comments and views in parallel
+        const [commentsData] = await Promise.all([
+          getComments(Number(id)),
+          incrementViews(Number(id))
+        ]);
+        setComments(commentsData);
+      }
+      setLoading(false);
+    };
+    fetchPostData();
   }, [id]);
 
   // 목차(TOC) 추출
@@ -42,37 +71,20 @@ const PostDetail: React.FC = () => {
       });
   }, [post]);
 
-  // 댓글 및 인터랙션 상태
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [likes, setLikes] = useState(0);
-  const [liked, setLiked] = useState(false);
-  const [author, setAuthor] = useState('');
-  const [password, setPassword] = useState('');
-  const [commentContent, setCommentContent] = useState('');
-
-  useEffect(() => {
-    if (id && post) {
-      setComments(getComments(Number(id)));
-      setLiked(isPostLiked(Number(id)));
-      setLikes(post.likes);
-      incrementViews(Number(id));
-    }
-  }, [id, post]);
-
-  const handleLike = () => {
-    const newLikes = toggleLike(Number(id));
+  const handleLike = async () => {
+    const newLikes = await toggleLike(Number(id));
     setLikes(newLikes);
     setLiked(prev => !prev);
   };
 
-  const handlePostDelete = () => {
+  const handlePostDelete = async () => {
     if (window.confirm('정말로 게시글을 삭제하시겠습니까?')) {
-      deletePost(Number(id));
+      await deletePost(Number(id));
       navigate('/');
     }
   };
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!author || !password || !commentContent) {
       alert('이름, 비밀번호, 내용을 모두 입력해주세요.');
@@ -88,25 +100,24 @@ const PostDetail: React.FC = () => {
       date: new Date().toLocaleString()
     };
 
-    saveComment(newComment);
+    await saveComment(newComment);
     setComments(prev => [...prev, newComment]);
     setAuthor('');
     setPassword('');
     setCommentContent('');
   };
 
-  const handleCommentDelete = (commentId: number) => {
+  const handleCommentDelete = async (commentId: number) => {
     if (window.confirm('관리자 권한으로 이 댓글을 삭제하시겠습니까?')) {
-      deleteComment(commentId);
+      await deleteComment(commentId);
       setComments(prev => prev.filter(c => c.id !== commentId));
     }
   };
 
-  if (!post) {
+  if (loading) {
     return (
       <div className="container">
-        <h2 style={{ color: '#e74c3c' }}>게시글을 찾지 못했습니다.</h2>
-        <Link to="/" className="post-link">목록으로 돌아가기</Link>
+        <p>게시글을 불러오는 중입니다...</p>
       </div>
     );
   }

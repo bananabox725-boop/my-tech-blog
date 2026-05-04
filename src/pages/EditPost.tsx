@@ -8,35 +8,39 @@ const EditPost: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  const post = useMemo(() => {
-    const posts = getPosts();
-    return posts.find(p => p.id === Number(id));
-  }, [id]);
-
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('React');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [attachments, setAttachments] = useState<{ name: string; data: string; type: string }[]>([]);
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    if (post) {
-      setTitle(post.title);
-      setCategory(post.category);
-      setContent(post.content);
-      setImageUrl(post.imageUrl || '');
-      setAttachments(post.attachments || []);
-    } else {
-      alert('게시글을 찾지 못했습니다.');
-      navigate('/');
-    }
-  }, [post, navigate]);
-
-  // 기존 포스트에서 카테고리 목록 추출
-  const existingCategories = useMemo(() => {
-    const posts = getPosts();
-    return Array.from(new Set(posts.map(p => p.category)));
-  }, []);
+    const fetchPostData = async () => {
+      setLoading(true);
+      const posts = await getPosts();
+      const foundPost = posts.find(p => p.id === Number(id));
+      
+      if (foundPost) {
+        setPost(foundPost);
+        setTitle(foundPost.title);
+        setCategory(foundPost.category);
+        setContent(foundPost.content);
+        setImageUrl(foundPost.imageUrl || '');
+        setAttachments(foundPost.attachments || []);
+        
+        const categories = Array.from(new Set(posts.map(p => p.category))) as string[];
+        setExistingCategories(categories);
+      } else {
+        alert('게시글을 찾지 못했습니다.');
+        navigate('/');
+      }
+      setLoading(false);
+    };
+    fetchPostData();
+  }, [id, navigate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -67,7 +71,7 @@ const EditPost: React.FC = () => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title || !content) {
@@ -88,16 +92,24 @@ const EditPost: React.FC = () => {
       views: post?.views || 0
     };
 
-    updatePost(updatedPost);
+    await updatePost(updatedPost);
     navigate(`/post/${id}`);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
-      deletePost(Number(id));
+      await deletePost(Number(id));
       navigate('/');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="container">
+        <p>게시글을 불러오는 중입니다...</p>
+      </div>
+    );
+  }
 
   if (!post) return null;
 

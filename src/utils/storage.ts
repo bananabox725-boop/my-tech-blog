@@ -1,71 +1,54 @@
-﻿import { posts as initialPosts } from '../data/posts';
 import type { Post, Comment } from '../data/posts';
 
-const STORAGE_KEY = 'blog_posts';
-const COMMENTS_KEY = 'blog_comments';
 const ADMIN_KEY = 'blog_is_admin';
 
 // 게시글 관련
-export const getPosts = (): Post[] => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialPosts));
-    return initialPosts;
-  }
+export const getPosts = async (): Promise<Post[]> => {
   try {
-    return JSON.parse(stored);
+    const res = await fetch('/api/blog?action=getPosts');
+    return await res.json();
   } catch (e) {
-    console.error('Failed to parse posts from localStorage', e);
-    return initialPosts;
+    console.error('Failed to fetch posts', e);
+    return [];
   }
 };
 
-export const savePost = (post: Post) => {
-  const posts = getPosts();
-  const updatedPosts = [post, ...posts];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPosts));
+export const savePost = async (post: Post) => {
+  await fetch('/api/blog?action=savePost', {
+    method: 'POST',
+    body: JSON.stringify(post),
+  });
 };
 
-export const deletePost = (id: number) => {
-  const posts = getPosts();
-  const updatedPosts = posts.filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPosts));
+export const deletePost = async (id: number) => {
+  await fetch(`/api/blog?action=deletePost&id=${id}`);
 };
 
-export const updatePost = (post: Post) => {
-  const posts = getPosts();
-  const index = posts.findIndex(p => p.id === post.id);
-  if (index !== -1) {
-    posts[index] = post;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+export const updatePost = async (post: Post) => {
+  await fetch('/api/blog?action=updatePost', {
+    method: 'POST',
+    body: JSON.stringify(post),
+  });
+};
+
+export const incrementViews = async (id: number) => {
+  await fetch(`/api/blog?action=incrementViews&id=${id}`);
+};
+
+export const toggleLike = async (id: number): Promise<number> => {
+  const isLiked = localStorage.getItem(`liked_${id}`) === 'true';
+  const increment = !isLiked;
+  
+  const res = await fetch(`/api/blog?action=toggleLike&id=${id}&increment=${increment}`);
+  const data = await res.json();
+  
+  if (increment) {
+    localStorage.setItem(`liked_${id}`, 'true');
+  } else {
+    localStorage.removeItem(`liked_${id}`);
   }
-};
-
-export const incrementViews = (id: number) => {
-  const posts = getPosts();
-  const index = posts.findIndex(p => p.id === id);
-  if (index !== -1) {
-    posts[index].views = posts[index].views + 1;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-  }
-};
-
-export const toggleLike = (id: number): number => {
-  const posts = getPosts();
-  const index = posts.findIndex(p => p.id === id);
-  if (index !== -1) {
-    const isLiked = localStorage.getItem(`liked_${id}`) === 'true';
-    if (isLiked) {
-      posts[index].likes = Math.max(0, posts[index].likes - 1);
-      localStorage.removeItem(`liked_${id}`);
-    } else {
-      posts[index].likes = posts[index].likes + 1;
-      localStorage.setItem(`liked_${id}`, 'true');
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-    return posts[index].likes;
-  }
-  return 0;
+  
+  return data.likes;
 };
 
 export const isPostLiked = (id: number): boolean => {
@@ -73,51 +56,33 @@ export const isPostLiked = (id: number): boolean => {
 };
 
 // 댓글 관련
-export const getComments = (postId: number): Comment[] => {
-  const stored = localStorage.getItem(COMMENTS_KEY);
-  if (!stored) return [];
+export const getComments = async (postId: number): Promise<Comment[]> => {
   try {
-    const allComments: Comment[] = JSON.parse(stored);
-    return allComments.filter(c => c.postId === postId);
+    const res = await fetch(`/api/blog?action=getComments&postId=${postId}`);
+    return await res.json();
   } catch (e) {
-    console.error('Failed to parse comments', e);
+    console.error('Failed to fetch comments', e);
     return [];
   }
 };
 
-export const saveComment = (comment: Comment) => {
-  const stored = localStorage.getItem(COMMENTS_KEY);
-  let allComments: Comment[] = [];
-  if (stored) {
-    try {
-      allComments = JSON.parse(stored);
-    } catch (e) {
-      console.error('Failed to parse comments', e);
-    }
-  }
-  allComments.push(comment);
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(allComments));
+export const saveComment = async (comment: Comment) => {
+  await fetch('/api/blog?action=saveComment', {
+    method: 'POST',
+    body: JSON.stringify(comment),
+  });
 };
 
-export const deleteComment = (commentId: number) => {
-  const stored = localStorage.getItem(COMMENTS_KEY);
-  if (!stored) return;
-  try {
-    const allComments: Comment[] = JSON.parse(stored);
-    const filtered = allComments.filter(c => c.id !== commentId);
-    localStorage.setItem(COMMENTS_KEY, JSON.stringify(filtered));
-  } catch (e) {
-    console.error('Failed to delete comment', e);
-  }
+export const deleteComment = async (commentId: number) => {
+  await fetch(`/api/blog?action=deleteComment&id=${commentId}`);
 };
 
-// 관리자 인증 관련
+// 관리자 인증 관련 (로컬 유지)
 export const isAdmin = (): boolean => {
   return localStorage.getItem(ADMIN_KEY) === 'true';
 };
 
 export const loginAdmin = (password: string): boolean => {
-  // 실제 서비스라면 보안상 위험하지만, 로컬 전용 앱이므로 하드코딩된 암호를 사용합니다.
   if (password === 'admin123') {
     localStorage.setItem(ADMIN_KEY, 'true');
     return true;
@@ -130,7 +95,5 @@ export const logoutAdmin = () => {
 };
 
 export const initStorage = () => {
-  if (!localStorage.getItem(STORAGE_KEY)) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialPosts));
-  }
+  // KV handles initialization via getPosts
 };

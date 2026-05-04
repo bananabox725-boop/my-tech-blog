@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { savePost, getPosts } from '../utils/storage';
 import type { Post } from '../data/posts';
@@ -11,11 +11,15 @@ const CreatePost: React.FC = () => {
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [attachments, setAttachments] = useState<{ name: string; data: string; type: string }[]>([]);
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
 
-  // 기존 포스트에서 카테고리 목록 추출
-  const existingCategories = useMemo(() => {
-    const posts = getPosts();
-    return Array.from(new Set(posts.map((p: Post) => p.category))) as string[];
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const posts = await getPosts();
+      const categories = Array.from(new Set(posts.map((p: Post) => p.category))) as string[];
+      setExistingCategories(categories);
+    };
+    fetchCategories();
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,7 +51,7 @@ const CreatePost: React.FC = () => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title || !content) {
@@ -68,7 +72,7 @@ const CreatePost: React.FC = () => {
       views: 0
     };
 
-    savePost(newPost);
+    await savePost(newPost);
     navigate('/');
   };
 

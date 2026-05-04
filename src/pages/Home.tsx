@@ -1,14 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { Post } from '../data/posts';
 import { getPosts, isAdmin, deletePost } from '../utils/storage';
 import '../styles/blog.css';
 
 const Home: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>(() => getPosts());
+  const [posts, setPosts] = useState<Post[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
   const adminMode = isAdmin();
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setLoading(true);
+      const data = await getPosts();
+      setPosts(data);
+      setLoading(false);
+    };
+    fetchPosts();
+  }, []);
 
   const filteredPosts = useMemo(() => {
     let result = posts;
@@ -25,12 +36,13 @@ const Home: React.FC = () => {
     return result;
   }, [posts, activeCategory, searchTerm]);
 
-  const handleDelete = (e: React.MouseEvent, id: number) => {
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.preventDefault();
     e.stopPropagation();
     if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
-      deletePost(id);
-      setPosts(getPosts());
+      await deletePost(id);
+      const updatedPosts = await getPosts();
+      setPosts(updatedPosts);
     }
   };
 
@@ -68,7 +80,9 @@ const Home: React.FC = () => {
       </section>
 
       <section className="post-list-section">
-        {filteredPosts.length > 0 ? (
+        {loading ? (
+          <p>게시글을 불러오는 중입니다...</p>
+        ) : filteredPosts.length > 0 ? (
           <ul className="post-list" style={{ listStyle: 'none', padding: 0 }}>
             {filteredPosts.map(post => (
               <li key={post.id} className="post-item" style={{ marginBottom: '20px' }}>

@@ -12,15 +12,20 @@ const Admin: React.FC = () => {
   const loggedIn = isAdmin();
 
   useEffect(() => {
-    if (loggedIn) {
-      setPosts(getPosts());
-    }
+    const fetchPosts = async () => {
+      if (loggedIn) {
+        const data = await getPosts();
+        setPosts(data);
+      }
+    };
+    fetchPosts();
   }, [loggedIn]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loginAdmin(password)) {
-      setPosts(getPosts());
+      const data = await getPosts();
+      setPosts(data);
       navigate('/admin');
     } else {
       setError('비밀번호가 올바르지 않습니다.');
@@ -32,10 +37,11 @@ const Admin: React.FC = () => {
     navigate('/');
   };
 
-  const handleDeletePost = (id: number) => {
+  const handleDeletePost = async (id: number) => {
     if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
-      deletePost(id);
-      setPosts(getPosts());
+      await deletePost(id);
+      const data = await getPosts();
+      setPosts(data);
     }
   };
 
