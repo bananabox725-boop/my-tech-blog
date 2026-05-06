@@ -26,12 +26,22 @@ const Admin: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (await loginAdmin(password)) {
-      const data = await getPosts();
-      setPosts(data);
-      navigate('/admin');
-    } else {
-      setError('비밀번호가 올바르지 않습니다.');
+    setError('');
+    
+    try {
+      const success = await loginAdmin(password);
+      if (success) {
+        const data = await getPosts();
+        setPosts(data);
+        navigate('/admin');
+      } else {
+        setError('비밀번호가 올바르지 않습니다.');
+        alert('로그인 실패: 비밀번호를 확인해주세요.');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(`오류 발생: ${err.message}`);
+      alert(`서버 통신 오류: ${err.message}`);
     }
   };
 

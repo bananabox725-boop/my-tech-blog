@@ -65,14 +65,19 @@ export default async function handler(req: Request) {
   const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment', 'updateAdminPassword'];
 
   if (adminActions.includes(action || '') && !isAdmin) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    return Response.json({ error: 'Unauthorized', debug: { action, authProvided: !!authHeader } }, { status: 401 });
   }
 
   try {
     switch (action) {
       case 'checkPassword': {
-        const { password } = await req.json();
-        return Response.json({ success: password === adminPassword });
+        const body = await req.json();
+        const providedPassword = body.password;
+        const isMatch = providedPassword === adminPassword;
+        return Response.json({ 
+          success: isMatch, 
+          message: isMatch ? 'Match' : 'Wrong password'
+        });
       }
 
       case 'updateAdminPassword': {
