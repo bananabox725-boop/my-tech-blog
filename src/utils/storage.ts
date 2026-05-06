@@ -111,7 +111,8 @@ export const loginAdmin = async (password: string): Promise<boolean> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    const res = await fetch('/api/blog?action=checkPassword', {
+    const timestamp = new Date().getTime();
+    const res = await fetch(`/api/blog?action=checkPassword&t=${timestamp}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
