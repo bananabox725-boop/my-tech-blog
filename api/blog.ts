@@ -41,10 +41,6 @@ const initialPosts = [
   },
 ];
 
-export const config = {
-  runtime: 'edge',
-};
-
 export default async function handler(req: Request) {
   const jsonResponse = (data: any, status = 200) => {
     return new Response(JSON.stringify(data), {
@@ -57,8 +53,7 @@ export default async function handler(req: Request) {
   };
 
   try {
-    const url = new URL(req.url);
-    const searchParams = url.searchParams;
+    const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
 
     if (!kv) {
