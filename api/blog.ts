@@ -48,27 +48,36 @@ export const config = {
 */
 
 export default async function handler(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const action = searchParams.get('action');
-
-  // Get current admin password from KV or use default
-  let adminPassword = await kv.get<string>(ADMIN_PWD_KEY);
-  if (!adminPassword) {
-    await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
-    adminPassword = DEFAULT_ADMIN_PWD;
-  }
-
-  const authHeader = req.headers.get('Authorization');
-  const isAdmin = authHeader === adminPassword;
-
-  // Actions that require admin privileges
-  const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment', 'updateAdminPassword'];
-
-  if (adminActions.includes(action || '') && !isAdmin) {
-    return Response.json({ error: 'Unauthorized', debug: { action, authProvided: !!authHeader } }, { status: 401 });
-  }
-
   try {
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
+
+    if (!kv) {
+      return Response.json({ error: 'KV database not connected' }, { status: 500 });
+    }
+
+    // Get current admin password from KV or use default
+    let adminPassword;
+    try {
+      adminPassword = await kv.get<string>(ADMIN_PWD_KEY);
+      if (!adminPassword) {
+        await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
+        adminPassword = DEFAULT_ADMIN_PWD;
+      }
+    } catch (e: any) {
+      return Response.json({ error: 'Failed to connect to KV: ' + e.message }, { status: 500 });
+    }
+
+    const authHeader = req.headers.get('Authorization');
+    const isAdmin = authHeader === adminPassword;
+
+    // Actions that require admin privileges
+    const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment', 'updateAdminPassword'];
+
+    if (adminActions.includes(action || '') && !isAdmin) {
+      return Response.json({ error: 'Unauthorized', debug: { action, authProvided: !!authHeader } }, { status: 401 });
+    }
+
     switch (action) {
       case 'checkPassword': {
         const body = await req.json();
