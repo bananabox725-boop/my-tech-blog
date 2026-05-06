@@ -42,56 +42,51 @@ const initialPosts = [
 ];
 
 export default async function handler(req: Request) {
+  // Ultra-fast response helper
   const jsonResponse = (data: any, status = 200) => {
     return new Response(JSON.stringify(data), {
       status,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0'
+        'Cache-Control': 'no-store, max-age=0',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       }
     });
   };
 
-  // Diagnostic logging (Server-side)
-  console.log('API Request:', req.url);
-  if (!kv) {
-    console.error('KV connection object is null or undefined');
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
   }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const action = searchParams.get('action');
+    const url = new URL(req.url);
+    const action = url.searchParams.get('action');
 
+    // 1. Login is now COMPLETELY independent of KV to prevent any timeouts
+    if (action === 'checkPassword') {
+      const body = await req.json();
+      const providedPassword = body.password;
+      
+      // Fallback priority: KV_ADMIN_PASSWORD env var > DEFAULT_ADMIN_PWD
+      const envPassword = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PWD;
+      
+      const isMatch = providedPassword === envPassword;
+      return jsonResponse({ 
+        success: isMatch, 
+        message: isMatch ? 'Match' : 'Wrong password'
+      });
+    }
+
+    // For other actions, keep KV but with strict error handling
+    if (!kv) {
+      if (action === 'getPosts') return jsonResponse(initialPosts); // Fallback for posts
+      return jsonResponse({ error: 'Database not connected' }, 500);
+    }
+
+    const searchParams = url.searchParams;
     switch (action) {
-      case 'checkPassword': {
-        const body = await req.json();
-        const providedPassword = body.password;
-        
-        let adminPassword = DEFAULT_ADMIN_PWD;
-        
-        if (kv) {
-          try {
-            // Try to get password from KV with a very short race-condition timeout
-            const kvPromise = kv.get<string>(ADMIN_PWD_KEY);
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('KV Timeout')), 3000)
-            );
-            
-            const result = await Promise.race([kvPromise, timeoutPromise]) as string;
-            if (result) adminPassword = result;
-          } catch (kvError) {
-            console.error('KV Access failed, falling back to default:', kvError);
-            // If KV fails, we still allow login with DEFAULT_ADMIN_PWD as a fail-safe
-          }
-        }
-        
-        const isMatch = providedPassword === adminPassword;
-        return jsonResponse({ 
-          success: isMatch, 
-          message: isMatch ? 'Match' : 'Wrong password'
-        });
-      }
-
       case 'updateAdminPassword': {
         const { newPassword } = await req.json();
         if (!newPassword || newPassword.length < 4) {
