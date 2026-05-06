@@ -106,28 +106,48 @@ export const getAdminToken = (): string => {
 };
 
 export const loginAdmin = async (password: string): Promise<boolean> => {
+  console.log('Attempting login with password length:', password.length);
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const res = await fetch('/api/blog?action=checkPassword', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ password })
+      body: JSON.stringify({ password }),
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
+    console.log('Login response status:', res.status);
+    
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.message || `서버 오류: ${res.status}`);
+      const errorText = await res.text();
+      console.error('Login failed with status:', res.status, 'Body:', errorText);
+      let errorMessage = `서버 오류 (${res.status})`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {}
+      throw new Error(errorMessage);
     }
 
     const data = await res.json();
+    console.log('Login response data:', data);
+    
     if (data.success) {
       localStorage.setItem(ADMIN_KEY, password);
       return true;
     }
     return false;
   } catch (e: any) {
-    console.error('Login API error:', e);
+    if (e.name === 'AbortError') {
+      console.error('Login request timed out');
+      throw new Error('서버 응답 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.');
+    }
+    console.error('Detailed login error:', e);
     throw e;
   }
 };
