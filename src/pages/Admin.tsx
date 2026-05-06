@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost } from '../utils/storage';
+import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost, updateAdminPassword } from '../utils/storage';
 import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
 const Admin: React.FC = () => {
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
   const navigate = useNavigate();
   const loggedIn = isAdmin();
@@ -23,12 +26,37 @@ const Admin: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginAdmin(password)) {
+    if (await loginAdmin(password)) {
       const data = await getPosts();
       setPosts(data);
       navigate('/admin');
     } else {
       setError('비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (newPassword !== confirmPassword) {
+      setError('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setError('비밀번호는 최소 4자 이상이어야 합니다.');
+      return;
+    }
+
+    const result = await updateAdminPassword(newPassword);
+    if (result) {
+      setSuccess('비밀번호가 성공적으로 변경되었습니다.');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      setError('비밀번호 변경에 실패했습니다.');
     }
   };
 
@@ -59,6 +87,36 @@ const Admin: React.FC = () => {
               로그아웃
             </button>
           </header>
+
+          {/* 비밀번호 변경 섹션 */}
+          <section style={{ marginBottom: '50px', padding: '24px', backgroundColor: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+            <h2 style={{ marginBottom: '20px' }}>비밀번호 변경</h2>
+            <form onSubmit={handlePasswordChange} style={{ maxWidth: '400px' }}>
+              <div className="form-group">
+                <label htmlFor="newPassword">새 비밀번호</label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 입력"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="confirmPassword">비밀번호 확인</label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="비밀번호 다시 입력"
+                />
+              </div>
+              {error && <p style={{ color: '#e74c3c', marginBottom: '15px', fontSize: '0.9rem' }}>{error}</p>}
+              {success && <p style={{ color: '#2ecc71', marginBottom: '15px', fontSize: '0.9rem' }}>{success}</p>}
+              <button type="submit" className="submit-btn">변경하기</button>
+            </form>
+          </section>
 
           <section>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

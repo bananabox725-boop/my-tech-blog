@@ -48,11 +48,19 @@ export const config = {
 export default async function handler(req: Request) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action');
+
+  // Get current admin password from KV or use default
+  let adminPassword = await kv.get<string>(ADMIN_PWD_KEY);
+  if (!adminPassword) {
+    await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
+    adminPassword = DEFAULT_ADMIN_PWD;
+  }
+
   const authHeader = req.headers.get('Authorization');
-  const isAdmin = authHeader === 'admin123';
+  const isAdmin = authHeader === adminPassword;
 
   // Actions that require admin privileges
-  const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment'];
+  const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment', 'updateAdminPassword'];
 
   if (adminActions.includes(action || '') && !isAdmin) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -60,6 +68,20 @@ export default async function handler(req: Request) {
 
   try {
     switch (action) {
+      case 'checkPassword': {
+        const { password } = await req.json();
+        return Response.json({ success: password === adminPassword });
+      }
+
+      case 'updateAdminPassword': {
+        const { newPassword } = await req.json();
+        if (!newPassword || newPassword.length < 4) {
+          return Response.json({ error: 'Password too short' }, { status: 400 });
+        }
+        await kv.set(ADMIN_PWD_KEY, newPassword);
+        return Response.json({ success: true });
+      }
+
       case 'getPosts': {
         let posts = await kv.get(STORAGE_KEY);
         if (!posts) {

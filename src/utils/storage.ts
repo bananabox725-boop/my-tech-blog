@@ -18,7 +18,7 @@ export const savePost = async (post: Post) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'admin123'
+      'Authorization': getAdminToken()
     },
     body: JSON.stringify(post),
   });
@@ -27,7 +27,7 @@ export const savePost = async (post: Post) => {
 export const deletePost = async (id: number) => {
   await fetch(`/api/blog?action=deletePost&id=${id}`, {
     headers: {
-      'Authorization': 'admin123'
+      'Authorization': getAdminToken()
     }
   });
 };
@@ -37,7 +37,7 @@ export const updatePost = async (post: Post) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'admin123'
+      'Authorization': getAdminToken()
     },
     body: JSON.stringify(post),
   });
@@ -88,19 +88,45 @@ export const saveComment = async (comment: Comment) => {
 export const deleteComment = async (commentId: number) => {
   await fetch(`/api/blog?action=deleteComment&id=${commentId}`, {
     headers: {
-      'Authorization': 'admin123'
+      'Authorization': getAdminToken()
     }
   });
 };
 
-// 관리자 인증 관련 (로컬 유지)
+// 관리자 인증 관련 (로컬 유지 및 서버 확인)
 export const isAdmin = (): boolean => {
-  return localStorage.getItem(ADMIN_KEY) === 'true';
+  return localStorage.getItem(ADMIN_KEY) !== null;
 };
 
-export const loginAdmin = (password: string): boolean => {
-  if (password === 'admin123') {
-    localStorage.setItem(ADMIN_KEY, 'true');
+export const getAdminToken = (): string => {
+  return localStorage.getItem(ADMIN_KEY) || '';
+};
+
+export const loginAdmin = async (password: string): Promise<boolean> => {
+  const res = await fetch('/api/blog?action=checkPassword', {
+    method: 'POST',
+    body: JSON.stringify({ password })
+  });
+  const data = await res.json();
+  if (data.success) {
+    localStorage.setItem(ADMIN_KEY, password);
+    return true;
+  }
+  return false;
+};
+
+export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
+  const res = await fetch('/api/blog?action=updateAdminPassword', {
+    method: 'POST',
+    headers: {
+      'Authorization': getAdminToken(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ newPassword })
+  });
+  const data = await res.json();
+  if (data.success) {
+    localStorage.setItem(ADMIN_KEY, newPassword);
     return true;
   }
   return false;
