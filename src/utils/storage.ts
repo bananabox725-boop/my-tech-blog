@@ -106,19 +106,30 @@ export const getAdminToken = (): string => {
 };
 
 export const loginAdmin = async (password: string): Promise<boolean> => {
-  const res = await fetch('/api/blog?action=checkPassword', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ password })
-  });
-  const data = await res.json();
-  if (data.success) {
-    localStorage.setItem(ADMIN_KEY, password);
-    return true;
+  try {
+    const res = await fetch('/api/blog?action=checkPassword', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password })
+    });
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.message || `서버 오류: ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem(ADMIN_KEY, password);
+      return true;
+    }
+    return false;
+  } catch (e: any) {
+    console.error('Login API error:', e);
+    throw e;
   }
-  return false;
 };
 
 export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
@@ -130,6 +141,12 @@ export const updateAdminPassword = async (newPassword: string): Promise<boolean>
     },
     body: JSON.stringify({ newPassword })
   });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `서버 오류: ${res.status}`);
+  }
+
   const data = await res.json();
   if (data.success) {
     localStorage.setItem(ADMIN_KEY, newPassword);

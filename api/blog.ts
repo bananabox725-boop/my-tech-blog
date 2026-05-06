@@ -41,22 +41,24 @@ const initialPosts = [
   },
 ];
 
-/*
 export const config = {
   runtime: 'edge',
 };
-*/
 
 export default async function handler(req: Request) {
   const jsonResponse = (data: any, status = 200) => {
     return new Response(JSON.stringify(data), {
       status,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, max-age=0'
+      }
     });
   };
 
   try {
-    const { searchParams } = new URL(req.url);
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
     const action = searchParams.get('action');
 
     if (!kv) {
