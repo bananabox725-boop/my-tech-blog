@@ -122,6 +122,15 @@ const PostDetail: React.FC = () => {
     );
   }
 
+  if (!post) {
+    return (
+      <div className="container">
+        <p>게시글을 찾을 수 없습니다.</p>
+        <Link to="/">목록으로 돌아가기</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '40px', alignItems: 'start' }}>
       <article className="post-detail">

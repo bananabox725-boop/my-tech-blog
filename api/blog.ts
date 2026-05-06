@@ -1,5 +1,4 @@
 import { kv } from '@vercel/kv';
-import { NextRequest, NextResponse } from 'next/server';
 
 // Note: In a real app, you'd want to secure the write/delete operations with a token or session.
 // For this migration, we'll implement the logic to match the existing storage.ts.
@@ -40,9 +39,11 @@ const initialPosts = [
   },
 ];
 
+/*
 export const config = {
   runtime: 'edge',
 };
+*/
 
 export default async function handler(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -56,7 +57,7 @@ export default async function handler(req: Request) {
           await kv.set(STORAGE_KEY, initialPosts);
           posts = initialPosts;
         }
-        return NextResponse.json(posts);
+        return Response.json(posts);
       }
 
       case 'savePost': {
@@ -64,7 +65,7 @@ export default async function handler(req: Request) {
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
         const updatedPosts = [post, ...posts];
         await kv.set(STORAGE_KEY, updatedPosts);
-        return NextResponse.json({ success: true });
+        return Response.json({ success: true });
       }
 
       case 'updatePost': {
@@ -75,7 +76,7 @@ export default async function handler(req: Request) {
           posts[index] = post;
           await kv.set(STORAGE_KEY, posts);
         }
-        return NextResponse.json({ success: true });
+        return Response.json({ success: true });
       }
 
       case 'deletePost': {
@@ -83,7 +84,7 @@ export default async function handler(req: Request) {
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
         const updatedPosts = posts.filter((p) => p.id !== id);
         await kv.set(STORAGE_KEY, updatedPosts);
-        return NextResponse.json({ success: true });
+        return Response.json({ success: true });
       }
 
       case 'incrementViews': {
@@ -94,7 +95,7 @@ export default async function handler(req: Request) {
           posts[index].views += 1;
           await kv.set(STORAGE_KEY, posts);
         }
-        return NextResponse.json({ success: true });
+        return Response.json({ success: true });
       }
 
       case 'toggleLike': {
@@ -112,14 +113,14 @@ export default async function handler(req: Request) {
           await kv.set(STORAGE_KEY, posts);
           currentLikes = posts[index].likes;
         }
-        return NextResponse.json({ likes: currentLikes });
+        return Response.json({ likes: currentLikes });
       }
 
       case 'getComments': {
         const postId = Number(searchParams.get('postId'));
         const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
         const filtered = allComments.filter((c) => c.postId === postId);
-        return NextResponse.json(filtered);
+        return Response.json(filtered);
       }
 
       case 'saveComment': {
@@ -127,7 +128,7 @@ export default async function handler(req: Request) {
         const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
         allComments.push(comment);
         await kv.set(COMMENTS_KEY, allComments);
-        return NextResponse.json({ success: true });
+        return Response.json({ success: true });
       }
 
       case 'deleteComment': {
@@ -135,13 +136,14 @@ export default async function handler(req: Request) {
         const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
         const filtered = allComments.filter((c) => c.id !== id);
         await kv.set(COMMENTS_KEY, filtered);
-        return NextResponse.json({ success: true });
+        return Response.json({ success: true });
       }
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return Response.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { status: 500 });
   }
 }
+
