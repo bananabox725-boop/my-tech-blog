@@ -5,6 +5,8 @@ import { kv } from '@vercel/kv';
 
 const STORAGE_KEY = 'blog_posts';
 const COMMENTS_KEY = 'blog_comments';
+const ADMIN_PWD_KEY = 'admin_password';
+const DEFAULT_ADMIN_PWD = 'admin123';
 
 const initialPosts = [
   { 
