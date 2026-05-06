@@ -42,6 +42,7 @@ const PostDetail: React.FC = () => {
       
       if (foundPost) {
         setPost(foundPost);
+        document.title = `${foundPost.title} | insite blind`;
         setLikes(foundPost.likes);
         setLiked(isPostLiked(Number(id)));
         

@@ -48,6 +48,15 @@ export const config = {
 export default async function handler(req: Request) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action');
+  const authHeader = req.headers.get('Authorization');
+  const isAdmin = authHeader === 'admin123';
+
+  // Actions that require admin privileges
+  const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment'];
+
+  if (adminActions.includes(action || '') && !isAdmin) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     switch (action) {

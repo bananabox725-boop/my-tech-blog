@@ -12,6 +12,7 @@ const Home: React.FC = () => {
   const adminMode = isAdmin();
 
   useEffect(() => {
+    document.title = 'insite blind | 홈';
     const fetchPosts = async () => {
       setLoading(true);
       const data = await getPosts();

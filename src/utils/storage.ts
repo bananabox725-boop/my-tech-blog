@@ -16,17 +16,29 @@ export const getPosts = async (): Promise<Post[]> => {
 export const savePost = async (post: Post) => {
   await fetch('/api/blog?action=savePost', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'admin123'
+    },
     body: JSON.stringify(post),
   });
 };
 
 export const deletePost = async (id: number) => {
-  await fetch(`/api/blog?action=deletePost&id=${id}`);
+  await fetch(`/api/blog?action=deletePost&id=${id}`, {
+    headers: {
+      'Authorization': 'admin123'
+    }
+  });
 };
 
 export const updatePost = async (post: Post) => {
   await fetch('/api/blog?action=updatePost', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'admin123'
+    },
     body: JSON.stringify(post),
   });
 };
@@ -74,7 +86,11 @@ export const saveComment = async (comment: Comment) => {
 };
 
 export const deleteComment = async (commentId: number) => {
-  await fetch(`/api/blog?action=deleteComment&id=${commentId}`);
+  await fetch(`/api/blog?action=deleteComment&id=${commentId}`, {
+    headers: {
+      'Authorization': 'admin123'
+    }
+  });
 };
 
 // 관리자 인증 관련 (로컬 유지)
