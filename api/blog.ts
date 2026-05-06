@@ -48,12 +48,19 @@ export const config = {
 */
 
 export default async function handler(req: Request) {
+  const jsonResponse = (data: any, status = 200) => {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  };
+
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
 
     if (!kv) {
-      return Response.json({ error: 'KV database not connected' }, { status: 500 });
+      return jsonResponse({ error: 'KV database connection object is missing' }, 500);
     }
 
     // Get current admin password from KV or use default
@@ -64,8 +71,8 @@ export default async function handler(req: Request) {
         await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
         adminPassword = DEFAULT_ADMIN_PWD;
       }
-    } catch (e: any) {
-      return Response.json({ error: 'Failed to connect to KV: ' + e.message }, { status: 500 });
+    } catch (kvError: any) {
+      return jsonResponse({ error: `KV Connection Error: ${kvError.message}` }, 500);
     }
 
     const authHeader = req.headers.get('Authorization');
@@ -75,7 +82,7 @@ export default async function handler(req: Request) {
     const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment', 'updateAdminPassword'];
 
     if (adminActions.includes(action || '') && !isAdmin) {
-      return Response.json({ error: 'Unauthorized', debug: { action, authProvided: !!authHeader } }, { status: 401 });
+      return jsonResponse({ error: 'Unauthorized', debug: { action, authProvided: !!authHeader } }, 401);
     }
 
     switch (action) {
@@ -83,7 +90,7 @@ export default async function handler(req: Request) {
         const body = await req.json();
         const providedPassword = body.password;
         const isMatch = providedPassword === adminPassword;
-        return Response.json({ 
+        return jsonResponse({ 
           success: isMatch, 
           message: isMatch ? 'Match' : 'Wrong password'
         });
@@ -92,10 +99,10 @@ export default async function handler(req: Request) {
       case 'updateAdminPassword': {
         const { newPassword } = await req.json();
         if (!newPassword || newPassword.length < 4) {
-          return Response.json({ error: 'Password too short' }, { status: 400 });
+          return jsonResponse({ error: 'Password too short' }, 400);
         }
         await kv.set(ADMIN_PWD_KEY, newPassword);
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       case 'getPosts': {
@@ -104,7 +111,7 @@ export default async function handler(req: Request) {
           await kv.set(STORAGE_KEY, initialPosts);
           posts = initialPosts;
         }
-        return Response.json(posts);
+        return jsonResponse(posts);
       }
 
       case 'savePost': {
@@ -112,44 +119,44 @@ export default async function handler(req: Request) {
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
         const updatedPosts = [post, ...posts];
         await kv.set(STORAGE_KEY, updatedPosts);
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       case 'updatePost': {
         const post = await req.json();
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
-        const index = posts.findIndex((p) => p.id === post.id);
+        const index = posts.findIndex((p: any) => p.id === post.id);
         if (index !== -1) {
           posts[index] = post;
           await kv.set(STORAGE_KEY, posts);
         }
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       case 'deletePost': {
         const id = Number(searchParams.get('id'));
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
-        const updatedPosts = posts.filter((p) => p.id !== id);
+        const updatedPosts = posts.filter((p: any) => p.id !== id);
         await kv.set(STORAGE_KEY, updatedPosts);
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       case 'incrementViews': {
         const id = Number(searchParams.get('id'));
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
-        const index = posts.findIndex((p) => p.id === id);
+        const index = posts.findIndex((p: any) => p.id === id);
         if (index !== -1) {
           posts[index].views += 1;
           await kv.set(STORAGE_KEY, posts);
         }
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       case 'toggleLike': {
         const id = Number(searchParams.get('id'));
         const increment = searchParams.get('increment') === 'true';
         const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
-        const index = posts.findIndex((p) => p.id === id);
+        const index = posts.findIndex((p: any) => p.id === id);
         let currentLikes = 0;
         if (index !== -1) {
           if (increment) {
@@ -160,14 +167,14 @@ export default async function handler(req: Request) {
           await kv.set(STORAGE_KEY, posts);
           currentLikes = posts[index].likes;
         }
-        return Response.json({ likes: currentLikes });
+        return jsonResponse({ likes: currentLikes });
       }
 
       case 'getComments': {
         const postId = Number(searchParams.get('postId'));
         const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
-        const filtered = allComments.filter((c) => c.postId === postId);
-        return Response.json(filtered);
+        const filtered = allComments.filter((c: any) => c.postId === postId);
+        return jsonResponse(filtered);
       }
 
       case 'saveComment': {
@@ -175,22 +182,26 @@ export default async function handler(req: Request) {
         const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
         allComments.push(comment);
         await kv.set(COMMENTS_KEY, allComments);
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       case 'deleteComment': {
         const id = Number(searchParams.get('id'));
         const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
-        const filtered = allComments.filter((c) => c.id !== id);
+        const filtered = allComments.filter((c: any) => c.id !== id);
         await kv.set(COMMENTS_KEY, filtered);
-        return Response.json({ success: true });
+        return jsonResponse({ success: true });
       }
 
       default:
-        return Response.json({ error: 'Invalid action' }, { status: 400 });
+        return jsonResponse({ error: 'Invalid action' }, 400);
     }
-  } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (globalError: any) {
+    return jsonResponse({ 
+      error: 'Global Server Error', 
+      message: globalError.message,
+      stack: globalError.stack
+    }, 500);
   }
 }
 
