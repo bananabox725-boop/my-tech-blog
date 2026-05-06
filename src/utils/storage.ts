@@ -81,6 +81,9 @@ export const getComments = async (postId: number): Promise<Comment[]> => {
 export const saveComment = async (comment: Comment) => {
   await fetch('/api/blog?action=saveComment', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(comment),
   });
 };
@@ -105,6 +108,9 @@ export const getAdminToken = (): string => {
 export const loginAdmin = async (password: string): Promise<boolean> => {
   const res = await fetch('/api/blog?action=checkPassword', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({ password })
   });
   const data = await res.json();
