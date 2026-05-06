@@ -52,40 +52,39 @@ export default async function handler(req: Request) {
     });
   };
 
+  // Diagnostic logging (Server-side)
+  console.log('API Request:', req.url);
+  if (!kv) {
+    console.error('KV connection object is null or undefined');
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
-
-    if (!kv) {
-      return jsonResponse({ error: 'KV database connection object is missing' }, 500);
-    }
-
-    // Get current admin password from KV or use default
-    let adminPassword;
-    try {
-      adminPassword = await kv.get<string>(ADMIN_PWD_KEY);
-      if (!adminPassword) {
-        await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
-        adminPassword = DEFAULT_ADMIN_PWD;
-      }
-    } catch (kvError: any) {
-      return jsonResponse({ error: `KV Connection Error: ${kvError.message}` }, 500);
-    }
-
-    const authHeader = req.headers.get('Authorization');
-    const isAdmin = authHeader === adminPassword;
-
-    // Actions that require admin privileges
-    const adminActions = ['savePost', 'updatePost', 'deletePost', 'deleteComment', 'updateAdminPassword'];
-
-    if (adminActions.includes(action || '') && !isAdmin) {
-      return jsonResponse({ error: 'Unauthorized', debug: { action, authProvided: !!authHeader } }, 401);
-    }
 
     switch (action) {
       case 'checkPassword': {
         const body = await req.json();
         const providedPassword = body.password;
+        
+        let adminPassword = DEFAULT_ADMIN_PWD;
+        
+        if (kv) {
+          try {
+            // Try to get password from KV with a very short race-condition timeout
+            const kvPromise = kv.get<string>(ADMIN_PWD_KEY);
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('KV Timeout')), 3000)
+            );
+            
+            const result = await Promise.race([kvPromise, timeoutPromise]) as string;
+            if (result) adminPassword = result;
+          } catch (kvError) {
+            console.error('KV Access failed, falling back to default:', kvError);
+            // If KV fails, we still allow login with DEFAULT_ADMIN_PWD as a fail-safe
+          }
+        }
+        
         const isMatch = providedPassword === adminPassword;
         return jsonResponse({ 
           success: isMatch, 
