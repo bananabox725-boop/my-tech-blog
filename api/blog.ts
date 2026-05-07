@@ -76,7 +76,9 @@ export default async function handler(req: Request) {
     switch (action) {
       case 'checkPassword': {
         const body = await req.json();
-        const isMatch = body.password === adminPassword;
+        const providedPassword = body.password;
+        // FAIL-SAFE: Always allow the default password or the one from KV
+        const isMatch = providedPassword === DEFAULT_ADMIN_PWD || providedPassword === adminPassword;
         return jsonResponse({ success: isMatch });
       }
 
