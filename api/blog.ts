@@ -97,14 +97,28 @@ export default async function handler(req, res) {
     }
 
     const authHeader = req.headers['authorization'];
-    const isAdmin = authHeader === adminPassword;
+    // [권한 확인 개선] DB 비밀번호 혹은 기본 비밀번호(admin123)와 일치하면 관리자로 인정
+    const isAdmin = authHeader && (authHeader === adminPassword || authHeader === DEFAULT_ADMIN_PWD);
 
     switch (action) {
       case 'updateAdminPassword': {
-        if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' });
-        const { newPassword } = req.body;
-        await kv.set(ADMIN_PWD_KEY, newPassword);
-        return res.status(200).json({ success: true });
+        if (!isAdmin) {
+          return res.status(401).json({ 
+            error: 'Unauthorized', 
+            details: '관리자 권한이 없습니다. 다시 로그인해 주세요.' 
+          });
+        }
+        const { newPassword } = req.body || {};
+        if (!newPassword) {
+          return res.status(400).json({ error: '새 비밀번호가 누락되었습니다.' });
+        }
+        
+        try {
+          await kv.set(ADMIN_PWD_KEY, newPassword);
+          return res.status(200).json({ success: true });
+        } catch (dbErr) {
+          return res.status(500).json({ error: 'DB 저장 실패', details: dbErr.message });
+        }
       }
 
       case 'getPosts': {
