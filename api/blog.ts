@@ -51,28 +51,55 @@ export default async function handler(req, res) {
   try {
     const { action } = req.query;
 
+    // 1. [최우선] 비밀번호 체크 - DB 연결 없이도 기본 비번은 동작해야 함
+    if (action === 'checkPassword') {
+      const { password } = req.body || {};
+      if (!password) {
+        return res.status(400).json({ error: '비밀번호가 누락되었습니다.' });
+      }
+
+      // 기본 비번 즉시 확인
+      if (password === DEFAULT_ADMIN_PWD) {
+        return res.status(200).json({ success: true });
+      }
+
+      // DB 연동 확인 (DB가 설정되어 있을 때만 추가 확인)
+      if (kv) {
+        try {
+          const dbPwd = await kv.get(ADMIN_PWD_KEY);
+          if (dbPwd && password === dbPwd) {
+            return res.status(200).json({ success: true });
+          }
+        } catch (kvErr) {
+          console.error('KV Auth Error:', kvErr);
+        }
+      }
+
+      return res.status(200).json({ success: false, message: 'Invalid password' });
+    }
+
+    // 2. 이후 기능들은 DB 연결 확인 필요
     if (!kv) {
-      return res.status(500).json({ error: 'Database connection failed' });
+      return res.status(500).json({ error: '데이터베이스 연결 객체가 생성되지 않았습니다.' });
     }
 
-    // 관리자 비밀번호 가져오기
-    let adminPassword = await kv.get(ADMIN_PWD_KEY);
-    if (!adminPassword) {
-      await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
-      adminPassword = DEFAULT_ADMIN_PWD;
+    // 관리자 비밀번호 가져오기 (권한 확인용)
+    let adminPassword;
+    try {
+      adminPassword = await kv.get(ADMIN_PWD_KEY);
+      if (!adminPassword) {
+        await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
+        adminPassword = DEFAULT_ADMIN_PWD;
+      }
+    } catch (e) {
+      console.error('KV Password Fetch Error:', e);
+      adminPassword = DEFAULT_ADMIN_PWD; // Fallback
     }
 
-    // 권한 확인 (헤더의 Authorization 값과 비교)
     const authHeader = req.headers['authorization'];
     const isAdmin = authHeader === adminPassword;
 
     switch (action) {
-      case 'checkPassword': {
-        const { password } = req.body;
-        const isMatch = password === DEFAULT_ADMIN_PWD || password === adminPassword;
-        return res.status(200).json({ success: isMatch });
-      }
-
       case 'updateAdminPassword': {
         if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' });
         const { newPassword } = req.body;
