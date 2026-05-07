@@ -2,76 +2,66 @@ import type { Post, Comment } from '../data/posts';
 
 const ADMIN_KEY = 'blog_is_admin';
 
-// 관리자 인증 관련
 export const isAdmin = (): boolean => localStorage.getItem(ADMIN_KEY) !== null;
 export const getAdminToken = () => localStorage.getItem(ADMIN_KEY) || '';
 export const logoutAdmin = () => localStorage.removeItem(ADMIN_KEY);
 
 export const loginAdmin = async (password: string): Promise<boolean> => {
   try {
-    const res = await fetch('/api/blog?action=checkPassword', {
+    const res = await fetch(`/api/blog?action=checkPassword&t=${Date.now()}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     });
+    
     const data = await res.json();
+    
+    if (!res.ok) {
+      // 서버에서 에러가 발생한 경우 (500 등) 상세 메시지 포함하여 throw
+      throw new Error(data.error || data.message || `서버 응답 오류 (${res.status})`);
+    }
+
     if (data.success) {
       localStorage.setItem(ADMIN_KEY, password);
       return true;
     }
+    
     return false;
-  } catch (e) {
-    console.error('Login error:', e);
-    return false;
+  } catch (e: any) {
+    console.error('Detailed login error:', e);
+    // 에러 발생 시 알림창에 상세 내용 표시
+    alert(`로그인 중 오류 발생: ${e.message}`);
+    throw e;
   }
 };
 
-export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
-  const res = await fetch('/api/blog?action=updateAdminPassword', {
-    method: 'POST',
-    headers: {
-      'Authorization': getAdminToken(),
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ newPassword })
-  });
-  const data = await res.json();
-  if (data.success) {
-    localStorage.setItem(ADMIN_KEY, newPassword);
-    return true;
-  }
-  return false;
-};
-
-// 게시글 관련
+// 나머지 유틸리티 함수들 (동일하게 유지하되 에러 처리 강화)
 export const getPosts = async (): Promise<Post[]> => {
   try {
     const res = await fetch('/api/blog?action=getPosts');
+    if (!res.ok) return [];
     return await res.json();
   } catch (e) {
-    console.error('Failed to fetch posts', e);
     return [];
   }
 };
 
 export const savePost = async (post: Post) => {
-  await fetch('/api/blog?action=savePost', {
+  const res = await fetch('/api/blog?action=savePost', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': getAdminToken()
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': getAdminToken() },
     body: JSON.stringify(post),
   });
+  if (!res.ok) {
+    const data = await res.json();
+    alert(`저장 실패: ${data.error || '알 수 없는 오류'}`);
+  }
 };
 
 export const updatePost = async (post: Post) => {
   await fetch('/api/blog?action=updatePost', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': getAdminToken()
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': getAdminToken() },
     body: JSON.stringify(post),
   });
 };
@@ -82,36 +72,34 @@ export const deletePost = async (id: number) => {
   });
 };
 
+export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
+  const res = await fetch('/api/blog?action=updateAdminPassword', {
+    method: 'POST',
+    headers: { 'Authorization': getAdminToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newPassword })
+  });
+  return res.ok;
+};
+
 export const incrementViews = async (id: number) => {
   await fetch(`/api/blog?action=incrementViews&id=${id}`);
 };
 
 export const toggleLike = async (id: number): Promise<number> => {
-  const isLiked = isPostLiked(id);
-  const increment = !isLiked;
-  const res = await fetch(`/api/blog?action=toggleLike&id=${id}&increment=${increment}`);
+  const res = await fetch(`/api/blog?action=toggleLike&id=${id}&increment=${!isPostLiked(id)}`);
   const data = await res.json();
-  if (increment) {
-    localStorage.setItem(`liked_${id}`, 'true');
-  } else {
-    localStorage.removeItem(`liked_${id}`);
+  if (res.ok) {
+    if (!isPostLiked(id)) localStorage.setItem(`liked_${id}`, 'true');
+    else localStorage.removeItem(`liked_${id}`);
   }
-  return data.likes;
+  return data.likes || 0;
 };
 
-export const isPostLiked = (id: number): boolean => {
-  return localStorage.getItem(`liked_${id}`) === 'true';
-};
+export const isPostLiked = (id: number): boolean => localStorage.getItem(`liked_${id}`) === 'true';
 
-// 댓글 관련
 export const getComments = async (postId: number): Promise<Comment[]> => {
-  try {
-    const res = await fetch(`/api/blog?action=getComments&postId=${postId}`);
-    return await res.json();
-  } catch (e) {
-    console.error('Failed to fetch comments', e);
-    return [];
-  }
+  const res = await fetch(`/api/blog?action=getComments&postId=${postId}`);
+  return res.ok ? await res.json() : [];
 };
 
 export const saveComment = async (comment: Comment) => {
