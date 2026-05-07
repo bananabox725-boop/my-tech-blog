@@ -42,25 +42,44 @@ export default async function handler(req: Request) {
   const jsonResponse = (data: any, status = 200) => {
     return new Response(JSON.stringify(data), {
       status,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      }
     });
   };
 
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
+  }
+
   try {
-    const { searchParams } = new URL(req.url);
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
     const action = searchParams.get('action');
 
     if (!kv) {
       return jsonResponse({ error: 'Database connection failed' }, 500);
     }
 
-    let adminPassword = await kv.get<string>(ADMIN_PWD_KEY) || DEFAULT_ADMIN_PWD;
+    const adminPassword = (await kv.get<string>(ADMIN_PWD_KEY)) || DEFAULT_ADMIN_PWD;
+    const authHeader = req.headers.get('Authorization');
+    const isAdmin = authHeader === adminPassword;
 
     switch (action) {
       case 'checkPassword': {
         const body = await req.json();
         const isMatch = body.password === adminPassword;
         return jsonResponse({ success: isMatch });
+      }
+
+      case 'updateAdminPassword': {
+        if (!isAdmin) return jsonResponse({ error: 'Unauthorized' }, 401);
+        const { newPassword } = await req.json();
+        await kv.set(ADMIN_PWD_KEY, newPassword);
+        return jsonResponse({ success: true });
       }
 
       case 'getPosts': {
@@ -71,8 +90,82 @@ export default async function handler(req: Request) {
         }
         return jsonResponse(posts);
       }
-      
-      // ... (나머지 케이스들은 필요시 추가)
+
+      case 'savePost': {
+        if (!isAdmin) return jsonResponse({ error: 'Unauthorized' }, 401);
+        const post = await req.json();
+        const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
+        await kv.set(STORAGE_KEY, [post, ...posts]);
+        return jsonResponse({ success: true });
+      }
+
+      case 'updatePost': {
+        if (!isAdmin) return jsonResponse({ error: 'Unauthorized' }, 401);
+        const post = await req.json();
+        const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
+        const index = posts.findIndex((p: any) => p.id === post.id);
+        if (index !== -1) {
+          posts[index] = post;
+          await kv.set(STORAGE_KEY, posts);
+        }
+        return jsonResponse({ success: true });
+      }
+
+      case 'deletePost': {
+        if (!isAdmin) return jsonResponse({ error: 'Unauthorized' }, 401);
+        const id = Number(searchParams.get('id'));
+        const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
+        await kv.set(STORAGE_KEY, posts.filter((p: any) => p.id !== id));
+        return jsonResponse({ success: true });
+      }
+
+      case 'incrementViews': {
+        const id = Number(searchParams.get('id'));
+        const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
+        const index = posts.findIndex((p: any) => p.id === id);
+        if (index !== -1) {
+          posts[index].views += 1;
+          await kv.set(STORAGE_KEY, posts);
+        }
+        return jsonResponse({ success: true });
+      }
+
+      case 'toggleLike': {
+        const id = Number(searchParams.get('id'));
+        const increment = searchParams.get('increment') === 'true';
+        const posts: any[] = (await kv.get(STORAGE_KEY)) || [];
+        const index = posts.findIndex((p: any) => p.id === id);
+        if (index !== -1) {
+          posts[index].likes += increment ? 1 : -1;
+          posts[index].likes = Math.max(0, posts[index].likes);
+          await kv.set(STORAGE_KEY, posts);
+          return jsonResponse({ likes: posts[index].likes });
+        }
+        return jsonResponse({ likes: 0 });
+      }
+
+      case 'getComments': {
+        const postId = Number(searchParams.get('postId'));
+        const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
+        return jsonResponse(allComments.filter((c: any) => c.postId === postId));
+      }
+
+      case 'saveComment': {
+        const comment = await req.json();
+        const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
+        allComments.push(comment);
+        await kv.set(COMMENTS_KEY, allComments);
+        return jsonResponse({ success: true });
+      }
+
+      case 'deleteComment': {
+        if (!isAdmin) return jsonResponse({ error: 'Unauthorized' }, 401);
+        const id = Number(searchParams.get('id'));
+        const allComments: any[] = (await kv.get(COMMENTS_KEY)) || [];
+        await kv.set(COMMENTS_KEY, allComments.filter((c: any) => c.id !== id));
+        return jsonResponse({ success: true });
+      }
+
       default:
         return jsonResponse({ error: 'Invalid action' }, 400);
     }
