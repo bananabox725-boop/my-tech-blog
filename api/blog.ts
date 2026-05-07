@@ -64,7 +64,12 @@ export default async function handler(req: Request) {
       return jsonResponse({ error: 'Database connection failed' }, 500);
     }
 
-    const adminPassword = (await kv.get<string>(ADMIN_PWD_KEY)) || DEFAULT_ADMIN_PWD;
+    let adminPassword = await kv.get<string>(ADMIN_PWD_KEY);
+    if (!adminPassword) {
+      // Initialize with default password if not set
+      await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
+      adminPassword = DEFAULT_ADMIN_PWD;
+    }
     const authHeader = req.headers.get('Authorization');
     const isAdmin = authHeader === adminPassword;
 
