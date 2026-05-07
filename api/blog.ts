@@ -1,4 +1,8 @@
+import { kv } from '@vercel/kv';
 
+const STORAGE_KEY = 'blog_posts';
+const COMMENTS_KEY = 'blog_comments';
+const ADMIN_PWD_KEY = 'admin_password';
 const DEFAULT_ADMIN_PWD = 'admin123';
 
 const initialPosts = [
@@ -38,37 +42,41 @@ export default async function handler(req: Request) {
   const jsonResponse = (data: any, status = 200) => {
     return new Response(JSON.stringify(data), {
       status,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
   };
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' } });
-  }
-
   try {
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
 
-    if (action === 'checkPassword') {
-      const body = await req.json();
-      const isMatch = body.password === DEFAULT_ADMIN_PWD;
-      return jsonResponse({ success: isMatch });
+    if (!kv) {
+      return jsonResponse({ error: 'Database connection failed' }, 500);
     }
 
-    if (action === 'getPosts') {
-      return jsonResponse(initialPosts);
+    let adminPassword = await kv.get<string>(ADMIN_PWD_KEY) || DEFAULT_ADMIN_PWD;
+
+    switch (action) {
+      case 'checkPassword': {
+        const body = await req.json();
+        const isMatch = body.password === adminPassword;
+        return jsonResponse({ success: isMatch });
+      }
+
+      case 'getPosts': {
+        let posts = await kv.get(STORAGE_KEY);
+        if (!posts) {
+          await kv.set(STORAGE_KEY, initialPosts);
+          posts = initialPosts;
+        }
+        return jsonResponse(posts);
+      }
+      
+      // ... (나머지 케이스들은 필요시 추가)
+      default:
+        return jsonResponse({ error: 'Invalid action' }, 400);
     }
-
-    // 기본적으로 빈 성공 응답 (타임아웃 방지용)
-    return jsonResponse({ success: true, message: 'Action not handled in clean mode' });
-
   } catch (error: any) {
-    return jsonResponse({ error: 'Internal Error', message: error.message }, 500);
+    return jsonResponse({ error: error.message }, 500);
   }
 }

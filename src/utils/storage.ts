@@ -2,7 +2,6 @@ import type { Post, Comment } from '../data/posts';
 
 const ADMIN_KEY = 'blog_is_admin';
 
-// 게시글 관련
 export const getPosts = async (): Promise<Post[]> => {
   try {
     const res = await fetch('/api/blog?action=getPosts');
@@ -13,173 +12,25 @@ export const getPosts = async (): Promise<Post[]> => {
   }
 };
 
-export const savePost = async (post: Post) => {
-  await fetch('/api/blog?action=savePost', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': getAdminToken()
-    },
-    body: JSON.stringify(post),
-  });
-};
-
-export const deletePost = async (id: number) => {
-  await fetch(`/api/blog?action=deletePost&id=${id}`, {
-    headers: {
-      'Authorization': getAdminToken()
-    }
-  });
-};
-
-export const updatePost = async (post: Post) => {
-  await fetch('/api/blog?action=updatePost', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': getAdminToken()
-    },
-    body: JSON.stringify(post),
-  });
-};
-
-export const incrementViews = async (id: number) => {
-  await fetch(`/api/blog?action=incrementViews&id=${id}`);
-};
-
-export const toggleLike = async (id: number): Promise<number> => {
-  const isLiked = localStorage.getItem(`liked_${id}`) === 'true';
-  const increment = !isLiked;
-  
-  const res = await fetch(`/api/blog?action=toggleLike&id=${id}&increment=${increment}`);
-  const data = await res.json();
-  
-  if (increment) {
-    localStorage.setItem(`liked_${id}`, 'true');
-  } else {
-    localStorage.removeItem(`liked_${id}`);
-  }
-  
-  return data.likes;
-};
-
-export const isPostLiked = (id: number): boolean => {
-  return localStorage.getItem(`liked_${id}`) === 'true';
-};
-
-// 댓글 관련
-export const getComments = async (postId: number): Promise<Comment[]> => {
-  try {
-    const res = await fetch(`/api/blog?action=getComments&postId=${postId}`);
-    return await res.json();
-  } catch (e) {
-    console.error('Failed to fetch comments', e);
-    return [];
-  }
-};
-
-export const saveComment = async (comment: Comment) => {
-  await fetch('/api/blog?action=saveComment', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(comment),
-  });
-};
-
-export const deleteComment = async (commentId: number) => {
-  await fetch(`/api/blog?action=deleteComment&id=${commentId}`, {
-    headers: {
-      'Authorization': getAdminToken()
-    }
-  });
-};
-
-// 관리자 인증 관련 (로컬 유지 및 서버 확인)
-export const isAdmin = (): boolean => {
-  return localStorage.getItem(ADMIN_KEY) !== null;
-};
-
-export const getAdminToken = (): string => {
-  return localStorage.getItem(ADMIN_KEY) || '';
-};
-
 export const loginAdmin = async (password: string): Promise<boolean> => {
-  console.log('Attempting login with password length:', password.length);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-    const timestamp = new Date().getTime();
-    const res = await fetch(`/api/blog?action=checkPassword&t=${timestamp}`, {
+    const res = await fetch('/api/blog?action=checkPassword', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password }),
-      signal: controller.signal
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
     });
-    
-    clearTimeout(timeoutId);
-    console.log('Login response status:', res.status);
-    
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Login failed with status:', res.status, 'Body:', errorText);
-      let errorMessage = `서버 오류 (${res.status})`;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch (e) {}
-      throw new Error(errorMessage);
-    }
-
     const data = await res.json();
-    console.log('Login response data:', data);
-    
     if (data.success) {
       localStorage.setItem(ADMIN_KEY, password);
       return true;
     }
     return false;
-  } catch (e: any) {
-    if (e.name === 'AbortError') {
-      console.error('Login request timed out');
-      throw new Error('서버 응답 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.');
-    }
-    console.error('Detailed login error:', e);
-    throw e;
+  } catch (e) {
+    console.error('Login error:', e);
+    return false;
   }
 };
 
-export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
-  const res = await fetch('/api/blog?action=updateAdminPassword', {
-    method: 'POST',
-    headers: {
-      'Authorization': getAdminToken(),
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ newPassword })
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || `서버 오류: ${res.status}`);
-  }
-
-  const data = await res.json();
-  if (data.success) {
-    localStorage.setItem(ADMIN_KEY, newPassword);
-    return true;
-  }
-  return false;
-};
-
-export const logoutAdmin = () => {
-  localStorage.removeItem(ADMIN_KEY);
-};
-
-export const initStorage = () => {
-  // KV handles initialization via getPosts
-};
+export const isAdmin = (): boolean => localStorage.getItem(ADMIN_KEY) !== null;
+export const logoutAdmin = () => localStorage.removeItem(ADMIN_KEY);
+export const getAdminToken = () => localStorage.getItem(ADMIN_KEY) || '';
