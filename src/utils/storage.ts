@@ -73,13 +73,30 @@ export const deletePost = async (id: number) => {
 };
 
 export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
-  const res = await fetch('/api/blog?action=updateAdminPassword', {
-    method: 'POST',
-    headers: { 'Authorization': getAdminToken(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ newPassword })
-  });
-  return res.ok;
+  try {
+    const res = await fetch('/api/blog?action=updateAdminPassword', {
+      method: 'POST',
+      headers: {
+        'Authorization': getAdminToken(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ newPassword })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      localStorage.setItem(ADMIN_KEY, newPassword);
+      return true;
+    } else {
+      alert(`비밀번호 변경 실패: ${data.error || '알 수 없는 오류'} (${data.details || ''})`);
+      return false;
+    }
+  } catch (e: any) {
+    alert(`네트워크 오류 발생: ${e.message}`);
+    return false;
+  }
 };
+
 
 export const incrementViews = async (id: number) => {
   await fetch(`/api/blog?action=incrementViews&id=${id}`);
