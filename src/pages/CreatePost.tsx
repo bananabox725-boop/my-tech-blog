@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { savePost, getPosts } from '../utils/storage';
+import { savePost, getCategories } from '../utils/storage';
 import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
 const CreatePost: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('React');
+  const [category, setCategory] = useState('');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [attachments, setAttachments] = useState<{ name: string; data: string; type: string }[]>([]);
@@ -15,9 +15,9 @@ const CreatePost: React.FC = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const posts = await getPosts();
-      const categories = Array.from(new Set(posts.map((p: Post) => p.category))) as string[];
-      setExistingCategories(categories);
+      const cats = await getCategories();
+      setExistingCategories(cats);
+      if (cats.length > 0) setCategory(cats[0]);
     };
     fetchCategories();
   }, []);
@@ -96,23 +96,11 @@ const CreatePost: React.FC = () => {
           </div>
           <div className="form-group">
             <label htmlFor="category">카테고리</label>
-            <input
-              type="text"
-              id="category"
-              list="category-list"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="카테고리를 입력하거나 선택하세요"
-            />
-            <datalist id="category-list">
+            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
               {existingCategories.map(cat => (
-                <option key={cat} value={cat} />
+                <option key={cat} value={cat}>{cat}</option>
               ))}
-              {!existingCategories.includes('React') && <option value="React" />}
-              {!existingCategories.includes('TypeScript') && <option value="TypeScript" />}
-              {!existingCategories.includes('Tool') && <option value="Tool" />}
-              {!existingCategories.includes('Life') && <option value="Life" />}
-            </datalist>
+            </select>
           </div>
           <div className="form-group">
             <label htmlFor="imageUrl">이미지 URL (선택 사항)</label>

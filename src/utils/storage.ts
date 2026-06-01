@@ -45,6 +45,30 @@ export const loginAdmin = async (password: string): Promise<boolean> => {
   }
 };
 
+export const getCategories = async (): Promise<string[]> => {
+  try {
+    const res = await fetch('/api/blog?action=getCategories');
+    if (!res.ok) return ['일상', '정보', '교육'];
+    return await res.json();
+  } catch (e) {
+    return ['일상', '정보', '교육'];
+  }
+};
+
+export const saveCategories = async (categories: string[]): Promise<boolean> => {
+  try {
+    const res = await fetch('/api/blog?action=saveCategories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': getAdminToken() },
+      body: JSON.stringify({ categories }),
+    });
+    const data = await res.json();
+    return res.ok && data.success;
+  } catch (e) {
+    return false;
+  }
+};
+
 export const getPosts = async (): Promise<Post[]> => {
   try {
     const res = await fetch('/api/blog?action=getPosts');

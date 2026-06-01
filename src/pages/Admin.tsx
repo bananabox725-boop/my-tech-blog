@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost, updateAdminPassword } from '../utils/storage';
+import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost, updateAdminPassword, getCategories, saveCategories } from '../utils/storage';
 import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
@@ -12,17 +12,22 @@ const Admin: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [categoryMsg, setCategoryMsg] = useState('');
   const navigate = useNavigate();
   const loggedIn = isAdmin();
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchData = async () => {
       if (loggedIn) {
-        const data = await getPosts();
+        const [data, cats] = await Promise.all([getPosts(), getCategories()]);
         setPosts(data);
+        setCategories(cats);
       }
     };
-    fetchPosts();
+    fetchData();
   }, [loggedIn]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -75,6 +80,33 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleAddCategory = async () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) return;
+    if (categories.includes(trimmed)) {
+      setCategoryMsg('이미 존재하는 카테고리입니다.');
+      return;
+    }
+    const updated = [...categories, trimmed];
+    const ok = await saveCategories(updated);
+    if (ok) {
+      setCategories(updated);
+      setNewCategory('');
+      setCategoryMsg('카테고리가 추가되었습니다.');
+      setTimeout(() => setCategoryMsg(''), 2000);
+    }
+  };
+
+  const handleDeleteCategory = async (cat: string) => {
+    const updated = categories.filter(c => c !== cat);
+    const ok = await saveCategories(updated);
+    if (ok) {
+      setCategories(updated);
+      setCategoryMsg(`'${cat}' 카테고리가 삭제되었습니다.`);
+      setTimeout(() => setCategoryMsg(''), 2000);
+    }
+  };
+
   const handleLogout = async () => {
     await logoutAdmin();
     navigate('/');
@@ -96,6 +128,13 @@ const Admin: React.FC = () => {
             <h1>관리자 설정</h1>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
+                onClick={() => { setShowCategoryForm(v => !v); setCategoryMsg(''); setNewCategory(''); }}
+                className="edit-btn"
+                style={{ width: 'auto', padding: '8px 20px' }}
+              >
+                카테고리 수정
+              </button>
+              <button
                 onClick={() => { setShowPasswordForm(v => !v); setError(''); setSuccess(''); setNewPassword(''); setConfirmPassword(''); }}
                 className="edit-btn"
                 style={{ width: 'auto', padding: '8px 20px' }}
@@ -111,6 +150,39 @@ const Admin: React.FC = () => {
               </button>
             </div>
           </header>
+
+          {/* 카테고리 관리 섹션 (토글) */}
+          {showCategoryForm && (
+            <section style={{ marginBottom: '30px', padding: '24px', backgroundColor: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+              <h2 style={{ marginBottom: '20px' }}>카테고리 관리</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                {categories.map(cat => (
+                  <span key={cat} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: '20px', fontSize: '0.9rem' }}>
+                    {cat}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat)}
+                      style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: 0 }}
+                      aria-label={`${cat} 삭제`}
+                    >×</button>
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', maxWidth: '400px' }}>
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCategory())}
+                  placeholder="새 카테고리 이름"
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
+                />
+                <button type="button" onClick={handleAddCategory} className="submit-btn" style={{ padding: '8px 20px' }}>추가</button>
+              </div>
+              {categoryMsg && <p style={{ marginTop: '12px', fontSize: '0.9rem', color: categoryMsg.includes('삭제') || categoryMsg.includes('추가') ? '#2ecc71' : '#e74c3c' }}>{categoryMsg}</p>}
+              <button type="button" onClick={() => setShowCategoryForm(false)} className="edit-btn" style={{ marginTop: '16px', padding: '8px 20px' }}>닫기</button>
+            </section>
+          )}
 
           {/* 비밀번호 변경 섹션 (토글) */}
           {showPasswordForm && (

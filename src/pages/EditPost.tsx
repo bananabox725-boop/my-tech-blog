@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPosts, updatePost, deletePost } from '../utils/storage';
+import { getPosts, updatePost, deletePost, getCategories } from '../utils/storage';
 import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
@@ -30,9 +30,9 @@ const EditPost: React.FC = () => {
         setContent(foundPost.content);
         setImageUrl(foundPost.imageUrl || '');
         setAttachments(foundPost.attachments || []);
-        
-        const categories = Array.from(new Set(posts.map(p => p.category))) as string[];
-        setExistingCategories(categories);
+
+        const cats = await getCategories();
+        setExistingCategories(cats);
       } else {
         alert('게시글을 찾지 못했습니다.');
         navigate('/');
@@ -133,23 +133,11 @@ const EditPost: React.FC = () => {
           </div>
           <div className="form-group">
             <label htmlFor="category">카테고리</label>
-            <input
-              type="text"
-              id="category"
-              list="category-list"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="카테고리를 입력하거나 선택하세요"
-            />
-            <datalist id="category-list">
+            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
               {existingCategories.map(cat => (
-                <option key={cat} value={cat} />
+                <option key={cat} value={cat}>{cat}</option>
               ))}
-              {!existingCategories.includes('React') && <option value="React" />}
-              {!existingCategories.includes('TypeScript') && <option value="TypeScript" />}
-              {!existingCategories.includes('Tool') && <option value="Tool" />}
-              {!existingCategories.includes('Life') && <option value="Life" />}
-            </datalist>
+            </select>
           </div>
           <div className="form-group">
             <label htmlFor="imageUrl">이미지 URL (선택 사항)</label>

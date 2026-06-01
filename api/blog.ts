@@ -25,6 +25,8 @@ const DEFAULT_ADMIN_PWD = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
 const STORAGE_KEY = 'blog_posts';
 const COMMENTS_KEY = 'blog_comments';
 const ADMIN_PWD_KEY = 'admin_password';
+const CATEGORIES_KEY = 'blog_categories';
+const DEFAULT_CATEGORIES = ['일상', '정보', '교육'];
 const SESSION_TTL = 86400; // 24시간
 
 interface Post {
@@ -56,7 +58,7 @@ const initialPosts: Post[] = [
     excerpt: '리액트를 처음 시작하는 초보자를 위한 가이드입니다.',
     content: '리액트는 사용자 인터페이스를 만들기 위한 자바스크립트 라이브러리입니다. 이 글에서는 리액트의 기본 개념인 컴포넌트, Props, State에 대해 알아봅니다.',
     date: '2026-04-22',
-    category: 'React',
+    category: '교육',
     likes: 0,
     views: 0,
   },
@@ -66,7 +68,7 @@ const initialPosts: Post[] = [
     excerpt: 'Vite를 사용하여 빠르고 현대적인 개발 환경을 구축하는 방법을 알아봅니다.',
     content: 'Vite는 최신 브라우저의 네이티브 ES 모듈 기능을 사용하는 빠른 빌드 도구입니다. 기존 Webpack보다 훨씬 빠른 개발 서버 시작과 HMR(Hot Module Replacement)을 제공합니다.',
     date: '2026-04-22',
-    category: 'Tool',
+    category: '정보',
     likes: 0,
     views: 0,
   },
@@ -76,7 +78,7 @@ const initialPosts: Post[] = [
     excerpt: '타입스크립트를 효과적으로 학습하는 단계별 로드맵을 제안합니다.',
     content: '타입스크립트는 자바스크립트에 정적 타입을 추가한 언어입니다. 코드의 안정성을 높이고 개발자의 실수를 줄여주는 강력한 도구입니다.',
     date: '2026-04-22',
-    category: 'TypeScript',
+    category: '교육',
     likes: 0,
     views: 0,
   },
@@ -169,6 +171,23 @@ export default async function handler(req: any, res: any) {
         } catch (dbErr) {
           return res.status(500).json({ error: 'DB 저장 실패', details: (dbErr as Error).message });
         }
+      }
+
+      case 'getCategories': {
+        let cats = await kv.get<string[]>(CATEGORIES_KEY);
+        if (!cats) {
+          await kv.set(CATEGORIES_KEY, DEFAULT_CATEGORIES);
+          cats = DEFAULT_CATEGORIES;
+        }
+        return res.status(200).json(cats);
+      }
+
+      case 'saveCategories': {
+        if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' });
+        const { categories } = req.body as { categories: string[] };
+        if (!Array.isArray(categories)) return res.status(400).json({ error: '잘못된 형식입니다.' });
+        await kv.set(CATEGORIES_KEY, categories);
+        return res.status(200).json({ success: true });
       }
 
       case 'getPosts': {
