@@ -1,10 +1,22 @@
 import type { Post, Comment } from '../data/posts';
 
-const ADMIN_KEY = 'blog_is_admin';
+const ADMIN_TOKEN_KEY = 'blog_admin_token';
 
-export const isAdmin = (): boolean => localStorage.getItem(ADMIN_KEY) !== null;
-export const getAdminToken = () => localStorage.getItem(ADMIN_KEY) || '';
-export const logoutAdmin = () => localStorage.removeItem(ADMIN_KEY);
+export const isAdmin = (): boolean => localStorage.getItem(ADMIN_TOKEN_KEY) !== null;
+export const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+
+export const logoutAdmin = async () => {
+  const token = getAdminToken();
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  if (token) {
+    try {
+      await fetch('/api/blog?action=logout', {
+        method: 'POST',
+        headers: { 'Authorization': token },
+      });
+    } catch (_) {}
+  }
+};
 
 export const loginAdmin = async (password: string): Promise<boolean> => {
   try {
@@ -13,29 +25,26 @@ export const loginAdmin = async (password: string): Promise<boolean> => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     });
-    
+
     const data = await res.json();
-    
+
     if (!res.ok) {
-      // 서버에서 에러가 발생한 경우 (500 등) 상세 메시지 포함하여 throw
       throw new Error(data.error || data.message || `서버 응답 오류 (${res.status})`);
     }
 
-    if (data.success) {
-      localStorage.setItem(ADMIN_KEY, password);
+    if (data.success && data.token) {
+      localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
       return true;
     }
-    
+
     return false;
   } catch (e: any) {
     console.error('Detailed login error:', e);
-    // 에러 발생 시 알림창에 상세 내용 표시
     alert(`로그인 중 오류 발생: ${e.message}`);
     throw e;
   }
 };
 
-// 나머지 유틸리티 함수들 (동일하게 유지하되 에러 처리 강화)
 export const getPosts = async (): Promise<Post[]> => {
   try {
     const res = await fetch('/api/blog?action=getPosts');
@@ -85,7 +94,7 @@ export const updateAdminPassword = async (newPassword: string): Promise<boolean>
 
     const data = await res.json();
     if (res.ok && data.success) {
-      localStorage.setItem(ADMIN_KEY, newPassword);
+      // 비밀번호 변경 후 세션 토큰은 그대로 유지 (서버에서 계속 유효)
       return true;
     } else {
       alert(`비밀번호 변경 실패: ${data.error || '알 수 없는 오류'} (${data.details || ''})`);
@@ -96,7 +105,6 @@ export const updateAdminPassword = async (newPassword: string): Promise<boolean>
     return false;
   }
 };
-
 
 export const incrementViews = async (id: number) => {
   await fetch(`/api/blog?action=incrementViews&id=${id}`);

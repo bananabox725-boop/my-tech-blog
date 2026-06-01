@@ -1,9 +1,11 @@
 import { kv } from '@vercel/kv';
+import { randomBytes } from 'crypto';
 
 const DEFAULT_ADMIN_PWD = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
 const STORAGE_KEY = 'blog_posts';
 const COMMENTS_KEY = 'blog_comments';
 const ADMIN_PWD_KEY = 'admin_password';
+const SESSION_TTL = 86400; // 24시간
 
 interface Post {
   id: number;
@@ -60,6 +62,14 @@ const initialPosts: Post[] = [
   },
 ];
 
+function generateToken(): string {
+  return randomBytes(32).toString('hex');
+}
+
+function sessionKey(token: string): string {
+  return `session:${token}`;
+}
+
 export default async function handler(req: any, res: any) {
   const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
@@ -73,50 +83,62 @@ export default async function handler(req: any, res: any) {
   try {
     const { action } = req.query;
 
-    // 비밀번호 체크 — DB 없이도 기본 비번은 동작
+    // 로그인 — 성공 시 세션 토큰 발급
     if (action === 'checkPassword') {
       const { password } = req.body || {};
       if (!password) {
         return res.status(400).json({ error: '비밀번호가 누락되었습니다.' });
       }
 
-      if (password === DEFAULT_ADMIN_PWD) {
-        return res.status(200).json({ success: true });
-      }
-
+      let adminPassword = DEFAULT_ADMIN_PWD;
       if (kv) {
         try {
           const dbPwd = await kv.get<string>(ADMIN_PWD_KEY);
-          if (dbPwd && password === dbPwd) {
-            return res.status(200).json({ success: true });
-          }
+          if (dbPwd) adminPassword = dbPwd;
         } catch (kvErr) {
           console.error('KV Auth Error:', kvErr);
         }
       }
 
-      return res.status(200).json({ success: false, message: 'Invalid password' });
+      if (password !== adminPassword) {
+        return res.status(200).json({ success: false, message: 'Invalid password' });
+      }
+
+      // 비밀번호 일치 → 세션 토큰 발급
+      if (!kv) {
+        return res.status(500).json({ error: '데이터베이스 연결 객체가 생성되지 않았습니다.' });
+      }
+      const token = generateToken();
+      await kv.set(sessionKey(token), 'admin', { ex: SESSION_TTL });
+      return res.status(200).json({ success: true, token });
+    }
+
+    // 로그아웃 — 세션 토큰 삭제
+    if (action === 'logout') {
+      const authHeader = req.headers['authorization'] as string | undefined;
+      if (authHeader && kv) {
+        try {
+          await kv.del(sessionKey(authHeader));
+        } catch (_) {}
+      }
+      return res.status(200).json({ success: true });
     }
 
     if (!kv) {
       return res.status(500).json({ error: '데이터베이스 연결 객체가 생성되지 않았습니다.' });
     }
 
-    // 권한 확인
-    let adminPassword: string;
-    try {
-      adminPassword = (await kv.get<string>(ADMIN_PWD_KEY)) ?? DEFAULT_ADMIN_PWD;
-      if (!adminPassword) {
-        await kv.set(ADMIN_PWD_KEY, DEFAULT_ADMIN_PWD);
-        adminPassword = DEFAULT_ADMIN_PWD;
-      }
-    } catch (e) {
-      console.error('KV Password Fetch Error:', e);
-      adminPassword = DEFAULT_ADMIN_PWD;
-    }
-
+    // 세션 토큰으로 관리자 권한 확인
     const authHeader = req.headers['authorization'] as string | undefined;
-    const isAdmin = !!authHeader && (authHeader === adminPassword || authHeader === DEFAULT_ADMIN_PWD);
+    let isAdmin = false;
+    if (authHeader) {
+      try {
+        const sessionValue = await kv.get<string>(sessionKey(authHeader));
+        isAdmin = sessionValue === 'admin';
+      } catch (e) {
+        console.error('KV Session Fetch Error:', e);
+      }
+    }
 
     switch (action) {
       case 'updateAdminPassword': {
@@ -132,6 +154,7 @@ export default async function handler(req: any, res: any) {
         }
         try {
           await kv.set(ADMIN_PWD_KEY, newPassword);
+          // 비밀번호 변경 후 현재 세션은 유효하게 유지
           return res.status(200).json({ success: true });
         } catch (dbErr) {
           return res.status(500).json({ error: 'DB 저장 실패', details: (dbErr as Error).message });

@@ -70,8 +70,8 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    logoutAdmin();
+  const handleLogout = async () => {
+    await logoutAdmin();
     navigate('/');
   };
 
