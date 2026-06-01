@@ -1,5 +1,25 @@
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 import { randomBytes } from 'crypto';
+
+const redis = new Redis(process.env.REDIS_URL as string);
+
+// @vercel/kv 호환 래퍼
+const kv = {
+  async get<T>(key: string): Promise<T | null> {
+    const val = await redis.get(key);
+    return val ? (JSON.parse(val) as T) : null;
+  },
+  async set(key: string, value: unknown, opts?: { ex?: number }): Promise<void> {
+    if (opts?.ex) {
+      await redis.set(key, JSON.stringify(value), 'EX', opts.ex);
+    } else {
+      await redis.set(key, JSON.stringify(value));
+    }
+  },
+  async del(key: string): Promise<void> {
+    await redis.del(key);
+  },
+};
 
 const DEFAULT_ADMIN_PWD = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
 const STORAGE_KEY = 'blog_posts';
@@ -91,23 +111,17 @@ export default async function handler(req: any, res: any) {
       }
 
       let adminPassword = DEFAULT_ADMIN_PWD;
-      if (kv) {
-        try {
-          const dbPwd = await kv.get<string>(ADMIN_PWD_KEY);
-          if (dbPwd) adminPassword = dbPwd;
-        } catch (kvErr) {
-          console.error('KV Auth Error:', kvErr);
-        }
+      try {
+        const dbPwd = await kv.get<string>(ADMIN_PWD_KEY);
+        if (dbPwd) adminPassword = dbPwd;
+      } catch (kvErr) {
+        console.error('KV Auth Error:', kvErr);
       }
 
       if (password !== adminPassword) {
         return res.status(200).json({ success: false, message: 'Invalid password' });
       }
 
-      // 비밀번호 일치 → 세션 토큰 발급
-      if (!kv) {
-        return res.status(500).json({ error: '데이터베이스 연결 객체가 생성되지 않았습니다.' });
-      }
       const token = generateToken();
       await kv.set(sessionKey(token), 'admin', { ex: SESSION_TTL });
       return res.status(200).json({ success: true, token });
@@ -116,16 +130,12 @@ export default async function handler(req: any, res: any) {
     // 로그아웃 — 세션 토큰 삭제
     if (action === 'logout') {
       const authHeader = req.headers['authorization'] as string | undefined;
-      if (authHeader && kv) {
+      if (authHeader) {
         try {
           await kv.del(sessionKey(authHeader));
         } catch (_) {}
       }
       return res.status(200).json({ success: true });
-    }
-
-    if (!kv) {
-      return res.status(500).json({ error: '데이터베이스 연결 객체가 생성되지 않았습니다.' });
     }
 
     // 세션 토큰으로 관리자 권한 확인
