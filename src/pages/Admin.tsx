@@ -11,6 +11,7 @@ const Admin: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const navigate = useNavigate();
   const loggedIn = isAdmin();
 
@@ -65,6 +66,10 @@ const Admin: React.FC = () => {
       setSuccess('비밀번호가 성공적으로 변경되었습니다.');
       setNewPassword('');
       setConfirmPassword('');
+      setTimeout(() => {
+        setSuccess('');
+        setShowPasswordForm(false);
+      }, 2000);
     } else {
       setError('비밀번호 변경에 실패했습니다.');
     }
@@ -89,44 +94,59 @@ const Admin: React.FC = () => {
         <article className="post-detail">
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h1>관리자 설정</h1>
-            <button 
-              onClick={handleLogout} 
-              className="delete-btn" 
-              style={{ width: 'auto', padding: '8px 20px' }}
-            >
-              로그아웃
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => { setShowPasswordForm(v => !v); setError(''); setSuccess(''); setNewPassword(''); setConfirmPassword(''); }}
+                className="edit-btn"
+                style={{ width: 'auto', padding: '8px 20px' }}
+              >
+                비밀번호 변경
+              </button>
+              <button
+                onClick={handleLogout}
+                className="delete-btn"
+                style={{ width: 'auto', padding: '8px 20px' }}
+              >
+                로그아웃
+              </button>
+            </div>
           </header>
 
-          {/* 비밀번호 변경 섹션 */}
-          <section style={{ marginBottom: '50px', padding: '24px', backgroundColor: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
-            <h2 style={{ marginBottom: '20px' }}>비밀번호 변경</h2>
-            <form onSubmit={handlePasswordChange} style={{ maxWidth: '400px' }}>
-              <div className="form-group">
-                <label htmlFor="newPassword">새 비밀번호</label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="새 비밀번호 입력"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="confirmPassword">비밀번호 확인</label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="비밀번호 다시 입력"
-                />
-              </div>
-              {error && <p style={{ color: '#e74c3c', marginBottom: '15px', fontSize: '0.9rem' }}>{error}</p>}
-              {success && <p style={{ color: '#2ecc71', marginBottom: '15px', fontSize: '0.9rem' }}>{success}</p>}
-              <button type="submit" className="submit-btn">변경하기</button>
-            </form>
-          </section>
+          {/* 비밀번호 변경 섹션 (토글) */}
+          {showPasswordForm && (
+            <section style={{ marginBottom: '50px', padding: '24px', backgroundColor: 'var(--bg-app)', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+              <h2 style={{ marginBottom: '20px' }}>비밀번호 변경</h2>
+              <form onSubmit={handlePasswordChange} style={{ maxWidth: '400px' }}>
+                <div className="form-group">
+                  <label htmlFor="newPassword">새 비밀번호</label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="새 비밀번호 입력"
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="confirmPassword">비밀번호 확인</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="비밀번호 다시 입력"
+                  />
+                </div>
+                {error && <p style={{ color: '#e74c3c', marginBottom: '15px', fontSize: '0.9rem' }}>{error}</p>}
+                {success && <p style={{ color: '#2ecc71', marginBottom: '15px', fontSize: '0.9rem' }}>{success}</p>}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" className="submit-btn">변경하기</button>
+                  <button type="button" onClick={() => setShowPasswordForm(false)} className="edit-btn" style={{ padding: '10px 20px' }}>취소</button>
+                </div>
+              </form>
+            </section>
+          )}
 
           <section>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
