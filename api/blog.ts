@@ -1,23 +1,36 @@
-import Redis from 'ioredis';
+import { createClient } from 'redis';
 import { randomBytes } from 'crypto';
 
-const redis = new Redis(process.env.REDIS_URL as string);
+// 서버리스 환경용 Redis 클라이언트 (node-redis v4)
+let _client: ReturnType<typeof createClient> | null = null;
 
-// @vercel/kv 호환 래퍼
+async function getRedis() {
+  if (!_client) {
+    _client = createClient({ url: process.env.REDIS_URL });
+    _client.on('error', (err) => console.error('Redis client error:', err));
+    await _client.connect();
+  }
+  return _client;
+}
+
+// kv 래퍼
 const kv = {
   async get<T>(key: string): Promise<T | null> {
-    const val = await redis.get(key);
+    const r = await getRedis();
+    const val = await r.get(key);
     return val ? (JSON.parse(val) as T) : null;
   },
   async set(key: string, value: unknown, opts?: { ex?: number }): Promise<void> {
+    const r = await getRedis();
     if (opts?.ex) {
-      await redis.set(key, JSON.stringify(value), 'EX', opts.ex);
+      await r.set(key, JSON.stringify(value), { EX: opts.ex });
     } else {
-      await redis.set(key, JSON.stringify(value));
+      await r.set(key, JSON.stringify(value));
     }
   },
   async del(key: string): Promise<void> {
-    await redis.del(key);
+    const r = await getRedis();
+    await r.del(key);
   },
 };
 
@@ -112,13 +125,9 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: '비밀번호가 누락되었습니다.' });
       }
 
-      let adminPassword = DEFAULT_ADMIN_PWD;
-      try {
-        const dbPwd = await kv.get<string>(ADMIN_PWD_KEY);
-        if (dbPwd) adminPassword = dbPwd;
-      } catch (kvErr) {
-        console.error('KV Auth Error:', kvErr);
-      }
+      // DB에서 비밀번호 조회 — 실패 시 에러 반환 (폴백 없음)
+      const dbPwd = await kv.get<string>(ADMIN_PWD_KEY);
+      const adminPassword = dbPwd ?? DEFAULT_ADMIN_PWD;
 
       if (password !== adminPassword) {
         return res.status(200).json({ success: false, message: 'Invalid password' });
