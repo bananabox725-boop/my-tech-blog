@@ -171,17 +171,18 @@ const CreatePost: React.FC = () => {
               </div>
             </div>
 
-            {previewMode ? (
+            {previewMode && contentType === 'html' ? (
+              <div
+                className="post-content markdown-body"
+                dangerouslySetInnerHTML={{ __html: content }}
+                style={{ minHeight: '300px', padding: '16px', border: '1px solid var(--border-light)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}
+              />
+            ) : previewMode && contentType === 'markdown' ? (
               <div
                 className="post-content markdown-body"
                 style={{ minHeight: '300px', padding: '16px', border: '1px solid var(--border-light)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}
-                {...(contentType === 'html'
-                  ? { dangerouslySetInnerHTML: { __html: content } }
-                  : {})}
               >
-                {contentType === 'markdown' && (
-                  <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>마크다운 미리보기는 게시물 상세 페이지에서 확인하세요.</p>
-                )}
+                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>마크다운 미리보기는 게시물 상세 페이지에서 확인하세요.</p>
               </div>
             ) : (
               <textarea
