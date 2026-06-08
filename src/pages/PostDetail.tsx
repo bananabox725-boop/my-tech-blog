@@ -163,57 +163,60 @@ const PostDetail: React.FC = () => {
         <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', marginBottom: '30px' }} />
 
         <section className="post-content markdown-body" aria-label="본문" style={{ minHeight: '200px' }}>
-          <ReactMarkdown
-            components={{
-              code({ className, children, ...rest }: any) {
-                const match = /language-(\w+)/.exec(className || '');
-                return match ? (
-                  <SyntaxHighlighter
-                    style={vscDarkPlus as any}
-                    language={match[1]}
-                    PreTag="div"
-                    {...rest}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code className={className} {...rest}>
-                    {children}
-                  </code>
-                );
-              },
-              // 유튜브 링크 자동 변환
-              a: ({ href, children }) => {
-                if (href && (href.includes('youtube.com') || href.includes('youtu.be'))) {
-                  const videoId = href.includes('v=') 
-                    ? href.split('v=')[1]?.split('&')[0] 
-                    : href.split('/').pop();
-                  
-                  if (videoId) {
-                    return (
-                      <div className="video-container" style={{ margin: '20px 0', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
-                        <iframe
-                          width="100%"
-                          height="400"
-                          src={`https://www.youtube.com/embed/${videoId}`}
-                          title="YouTube video player"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        ></iframe>
-                      </div>
-                    );
+          {post.contentType === 'html' ? (
+            <div dangerouslySetInnerHTML={{ __html: post.content }} />
+          ) : (
+            <ReactMarkdown
+              components={{
+                code({ className, children, ...rest }: any) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  return match ? (
+                    <SyntaxHighlighter
+                      style={vscDarkPlus as any}
+                      language={match[1]}
+                      PreTag="div"
+                      {...rest}
+                    >
+                      {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code className={className} {...rest}>
+                      {children}
+                    </code>
+                  );
+                },
+                a: ({ href, children }) => {
+                  if (href && (href.includes('youtube.com') || href.includes('youtu.be'))) {
+                    const videoId = href.includes('v=')
+                      ? href.split('v=')[1]?.split('&')[0]
+                      : href.split('/').pop();
+
+                    if (videoId) {
+                      return (
+                        <div className="video-container" style={{ margin: '20px 0', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+                          <iframe
+                            width="100%"
+                            height="400"
+                            src={`https://www.youtube.com/embed/${videoId}`}
+                            title="YouTube video player"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        </div>
+                      );
+                    }
                   }
-                }
-                return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-              },
-              h1: (props) => <h1 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h1>,
-              h2: (props) => <h2 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h2>,
-              h3: (props) => <h3 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h3>,
-            }}
-          >
-            {post.content}
-          </ReactMarkdown>
+                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                },
+                h1: (props) => <h1 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h1>,
+                h2: (props) => <h2 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h2>,
+                h3: (props) => <h3 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h3>,
+              }}
+            >
+              {post.content}
+            </ReactMarkdown>
+          )}
         </section>
 
         {/* 좋아요 버튼 */}

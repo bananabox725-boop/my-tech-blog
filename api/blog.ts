@@ -47,6 +47,7 @@ interface Post {
   title: string;
   excerpt: string;
   content: string;
+  contentType?: 'markdown' | 'html';
   date: string;
   category: string;
   imageUrl?: string;
