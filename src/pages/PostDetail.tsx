@@ -58,6 +58,13 @@ const PostDetail: React.FC = () => {
     fetchPostData();
   }, [id]);
 
+  // 단독 줄의 유튜브 URL을 마크다운 링크로 변환해 자동 임베드 처리
+  const preprocessMarkdown = (text: string) =>
+    text.replace(
+      /^(https?:\/\/(www\.)?(youtube\.com\/watch\?[^\s]+|youtu\.be\/[^\s]+))$/gm,
+      '[$1]($1)'
+    );
+
   // 목차(TOC) 추출
   const toc = useMemo(() => {
     if (!post) return [];
@@ -214,7 +221,7 @@ const PostDetail: React.FC = () => {
                 h3: (props) => <h3 id={String(props.children).toLowerCase().replace(/[^\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, '-')}>{props.children}</h3>,
               }}
             >
-              {post.content}
+              {preprocessMarkdown(post.content)}
             </ReactMarkdown>
           )}
         </section>
