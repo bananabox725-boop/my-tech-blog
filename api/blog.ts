@@ -6,7 +6,7 @@ let _client: ReturnType<typeof createClient> | null = null;
 
 async function getRedis() {
   if (!_client) {
-    _client = createClient({ url: process.env.REDIS_URL });
+    _client = createClient({ url: process.env.KV_URL || process.env.REDIS_URL });
     _client.on('error', (err) => console.error('Redis client error:', err));
     await _client.connect();
   }

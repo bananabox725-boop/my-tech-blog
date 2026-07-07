@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 async function backup() {
   console.log('Connecting to Redis...');
-  const client = createClient({ url: process.env.REDIS_URL });
+  const client = createClient({ url: process.env.KV_URL || process.env.REDIS_URL });
   
   client.on('error', (err) => console.error('Redis error:', err));
   await client.connect();
