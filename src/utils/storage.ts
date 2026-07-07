@@ -164,3 +164,31 @@ export const deleteComment = async (commentId: number) => {
     headers: { 'Authorization': getAdminToken() }
   });
 };
+
+export const restoreBackup = async (data: any): Promise<boolean> => {
+  try {
+    const res = await fetch('/api/blog?action=restoreBackup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': getAdminToken() },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    return res.ok && result.success;
+  } catch (e) {
+    console.error('Backup restore failed:', e);
+    return false;
+  }
+};
+
+export const getBackupData = async (): Promise<any> => {
+  try {
+    const res = await fetch('/api/blog?action=getBackup', {
+      headers: { 'Authorization': getAdminToken() }
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error('Backup fetch failed:', e);
+    return null;
+  }
+};

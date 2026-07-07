@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost, updateAdminPassword, getCategories, saveCategories } from '../utils/storage';
+import { isAdmin, loginAdmin, logoutAdmin, getPosts, deletePost, updateAdminPassword, getCategories, saveCategories, getBackupData, restoreBackup } from '../utils/storage';
 import type { Post } from '../data/posts';
 import '../styles/blog.css';
 
@@ -17,6 +17,7 @@ const Admin: React.FC = () => {
   const [newCategory, setNewCategory] = useState('');
   const [categoryMsg, setCategoryMsg] = useState('');
   const navigate = useNavigate();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const loggedIn = isAdmin();
 
   useEffect(() => {
@@ -120,6 +121,50 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleExportData = async () => {
+    const backupData = await getBackupData();
+    if (!backupData) {
+      alert('백업 데이터를 불러오는데 실패했습니다.');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `blog_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (window.confirm('기존 데이터를 덮어쓰고 복구하시겠습니까?')) {
+          const success = await restoreBackup(json);
+          if (success) {
+            alert('데이터가 성공적으로 복구되었습니다.');
+            const [data, cats] = await Promise.all([getPosts(), getCategories()]);
+            setPosts(data);
+            setCategories(cats);
+          } else {
+            alert('복구에 실패했습니다.');
+          }
+        }
+      } catch (err) {
+        alert('잘못된 백업 파일 형식입니다.');
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   if (loggedIn) {
     return (
       <div className="container">
@@ -127,6 +172,27 @@ const Admin: React.FC = () => {
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h1>관리자 설정</h1>
             <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleExportData}
+                className="edit-btn"
+                style={{ width: 'auto', padding: '8px 20px', backgroundColor: '#3498db', color: 'white', border: 'none' }}
+              >
+                데이터 백업
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="edit-btn"
+                style={{ width: 'auto', padding: '8px 20px', backgroundColor: '#2ecc71', color: 'white', border: 'none' }}
+              >
+                데이터 복구
+              </button>
+              <input 
+                type="file" 
+                accept=".json" 
+                style={{ display: 'none' }} 
+                ref={fileInputRef} 
+                onChange={handleImportData} 
+              />
               <button
                 onClick={() => { setShowCategoryForm(v => !v); setCategoryMsg(''); setNewCategory(''); }}
                 className="edit-btn"

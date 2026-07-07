@@ -67,6 +67,36 @@ interface Comment {
 
 const initialPosts: Post[] = [
   {
+    id: 1,
+    title: 'React 입문',
+    excerpt: '리액트를 처음 시작하는 초보자를 위한 가이드입니다.',
+    content: '리액트는 사용자 인터페이스를 만들기 위한 자바스크립트 라이브러리입니다. 이 글에서는 리액트의 기본 개념인 컴포넌트, Props, State에 대해 알아봅니다.',
+    date: '2026-04-22',
+    category: '교육',
+    likes: 0,
+    views: 0,
+  },
+  {
+    id: 2,
+    title: 'Vite로 프로젝트 설정',
+    excerpt: 'Vite를 사용하여 빠르고 현대적인 개발 환경을 구축하는 방법을 알아봅니다.',
+    content: 'Vite는 최신 브라우저의 네이티브 ES 모듈 기능을 사용하는 빠른 빌드 도구입니다. 기존 Webpack보다 훨씬 빠른 개발 서버 시작과 HMR(Hot Module Replacement)을 제공합니다.',
+    date: '2026-04-22',
+    category: '정보',
+    likes: 0,
+    views: 0,
+  },
+  {
+    id: 3,
+    title: 'TypeScript 공부법',
+    excerpt: '타입스크립트를 효과적으로 학습하는 단계별 로드맵을 제안합니다.',
+    content: '타입스크립트는 자바스크립트에 정적 타입을 추가한 언어입니다. 코드의 안정성을 높이고 개발자의 실수를 줄여주는 강력한 도구입니다.',
+    date: '2026-04-22',
+    category: '교육',
+    likes: 0,
+    views: 0,
+  },
+  {
     id: 4,
     title: '2026년 상반기 AI 주요 이슈 총정리',
     excerpt: 'GPT-5 출시, Claude 4 시리즈 공개, AI 규제 강화 등 2026년 상반기를 뜨겁게 달군 인공지능 핵심 이슈들을 정리합니다.',
@@ -269,6 +299,23 @@ export default async function handler(req: any, res: any) {
         const id = Number(req.query.id);
         const allComments = (await kv.get<Comment[]>(COMMENTS_KEY)) ?? [];
         await kv.set(COMMENTS_KEY, allComments.filter((c) => c.id !== id));
+        return res.status(200).json({ success: true });
+      }
+
+      case 'getBackup': {
+        if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' });
+        const posts = (await kv.get<Post[]>(STORAGE_KEY)) ?? [];
+        const categories = (await kv.get<string[]>(CATEGORIES_KEY)) ?? [];
+        const comments = (await kv.get<Comment[]>(COMMENTS_KEY)) ?? [];
+        return res.status(200).json({ posts, categories, comments, timestamp: new Date().toISOString() });
+      }
+
+      case 'restoreBackup': {
+        if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' });
+        const { posts, categories, comments } = req.body || {};
+        if (posts && Array.isArray(posts)) await kv.set(STORAGE_KEY, posts);
+        if (categories && Array.isArray(categories)) await kv.set(CATEGORIES_KEY, categories);
+        if (comments && Array.isArray(comments)) await kv.set(COMMENTS_KEY, comments);
         return res.status(200).json({ success: true });
       }
 

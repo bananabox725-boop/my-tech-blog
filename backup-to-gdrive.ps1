@@ -8,13 +8,18 @@ if (!(Test-Path $GDrivePath)) {
     New-Item -ItemType Directory -Path $GDrivePath
 }
 
-# 3. 임시 폴더로 소스 복사 (node_modules, dist 제외)
+# 3. 데이터베이스 백업 생성
+Write-Host "Redis 데이터베이스 백업 중..." -ForegroundColor Cyan
+Set-Location -Path $ProjectRoot
+node --env-file=.env.local scripts/backup-db.js
+
+# 4. 임시 폴더로 소스 복사 (node_modules, dist 제외)
 $TempBackupPath = "$env:TEMP\blog_backup_temp"
 if (Test-Path $TempBackupPath) { Remove-Item -Recurse -Force $TempBackupPath }
 New-Item -ItemType Directory -Path $TempBackupPath
 
 Write-Host "파일 복사 중..." -ForegroundColor Cyan
-Copy-Item -Path "$ProjectRoot\src", "$ProjectRoot\public", "$ProjectRoot\package.json", "$ProjectRoot\tsconfig*.json", "$ProjectRoot\vite.config.ts", "$ProjectRoot\index.html", "$ProjectRoot\.gitignore" -Destination $TempBackupPath -Recurse -Force
+Copy-Item -Path "$ProjectRoot\src", "$ProjectRoot\public", "$ProjectRoot\package.json", "$ProjectRoot\tsconfig*.json", "$ProjectRoot\vite.config.ts", "$ProjectRoot\index.html", "$ProjectRoot\.gitignore", "$ProjectRoot\blog_db_backup.json" -Destination $TempBackupPath -Recurse -Force
 
 # 4. 압축 및 구글 드라이브로 복사
 Write-Host "압축 및 구글 드라이브로 전송 중..." -ForegroundColor Cyan
